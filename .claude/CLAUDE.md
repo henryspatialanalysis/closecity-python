@@ -44,9 +44,10 @@ OIDC trusted publishing) is the eventual target. Public repo:
   `_blocks_gdf` drops them (`geometry.notna()`) so plotting and spatial joins work. The
   block join renames the key to `geoid` before merging (the R SDK had a bug here; do
   not regress).
-- **`place_blocks()` (`/v1/places/{geoid}/blocks`) is BROKEN server-side:** it times
-  out (15s Lambda) for every real place. Tutorials use `blocks_query(center, radius_m)`
-  instead. Leave the wrapper, but do not build examples on it until the API is fixed.
+- **`place_blocks()` works since 2026-07-22** (server-side query fix in wtm.api). The
+  home-search tutorial now uses it for whole-city pulls; `blocks_query` remains the
+  tool for a radius or polygon. A rarely-queried big place can take a few seconds on
+  the first call while the database cache warms; it is not broken again.
 
 ## Local live doc build (this EFS host)
 

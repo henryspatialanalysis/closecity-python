@@ -63,13 +63,13 @@ stops.plot(ax = ax, color = "#f36e21", marker = "^")
 
 ## Find the blocks that qualify
 
-Pull the per-block walk times for the blocks around the city centre. The result is a
-GeoDataFrame with one row per (block, category); the boundaries come from `pygris`,
-downloaded once.
+Somerville is a census place, so one call by place GEOID pulls the per-block walk
+times for every block in the city. The result is a GeoDataFrame with one row per
+(block, category); the boundaries come from `pygris`, downloaded once. To search an
+arbitrary area instead, use `blocks_query` with a centre and radius or a polygon.
 
 ```{code-cell} python
-blocks = close.blocks_query(center = {"lon": city["lon"], "lat": city["lat"]},
-                            radius_m = 3000, mode = "walk",
+blocks = close.place_blocks(city["geoid"], mode = "walk",
                             type = [grocery, restaurant, transit])
 ```
 
