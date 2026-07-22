@@ -108,7 +108,10 @@ def _blocks_gdf(rows, block_geometry, geoid_col, crs, fetch, gpd):
     if crs is not None and geo.crs is not None and str(geo.crs) != str(crs):
         geo = geo.to_crs(crs)
     merged = df.merge(geo[["geoid", "geometry"]], on = "geoid", how = "left")
-    return gpd.GeoDataFrame(merged, geometry = "geometry", crs = crs)
+    out = gpd.GeoDataFrame(merged, geometry = "geometry", crs = crs)
+    # Drop rows whose GEOID had no TIGER match (e.g. water blocks); they have no
+    # geometry and would break plotting and spatial joins.
+    return out[out.geometry.notna()].reset_index(drop = True)
 
 
 def to_geopandas(
