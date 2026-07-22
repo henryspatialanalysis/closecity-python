@@ -21,8 +21,9 @@ class CloseAPIError(CloseError):
 
     Attributes mirror the problem document: ``slug`` (the stable machine key),
     ``title``, ``status``, ``detail``, plus ``request_id`` (from ``X-Request-Id``,
-    quote it in support requests), ``retry_after`` when present, and ``extras``
-    for any additional problem members (e.g. validation ``errors``).
+    quote it in support requests), ``retry_after`` when present, ``extras`` for
+    any additional problem members (e.g. validation ``errors``), and ``hint``, a
+    client-side note appended to the message (e.g. "set CLOSECITY_KEY").
     """
 
     def __init__(
@@ -35,6 +36,7 @@ class CloseAPIError(CloseError):
         request_id: str | None = None,
         retry_after: float | None = None,
         extras: dict[str, Any] | None = None,
+        hint: str | None = None,
     ):
         self.status = status
         self.slug = slug
@@ -43,9 +45,12 @@ class CloseAPIError(CloseError):
         self.request_id = request_id
         self.retry_after = retry_after
         self.extras = extras or {}
+        self.hint = hint
         message = f"{status} {slug}: {title}"
         if detail:
             message += f": {detail}"
+        if hint:
+            message += f" — {hint}"
         if request_id:
             message += f" (request {request_id})"
         super().__init__(message)
@@ -103,6 +108,7 @@ def error_from_problem(
     body: dict[str, Any],
     request_id: str | None,
     retry_after: float | None,
+    hint: str | None = None,
 ) -> CloseAPIError:
     """Build the most specific exception for a problem+json body."""
 
@@ -121,4 +127,5 @@ def error_from_problem(
         request_id = request_id,
         retry_after = retry_after,
         extras = extras,
+        hint = hint,
     )

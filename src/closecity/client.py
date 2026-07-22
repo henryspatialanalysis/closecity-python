@@ -8,6 +8,7 @@ endpoints transparently. Cursors are opaque and never constructed client-side.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -166,7 +167,9 @@ class Client:
 
     ``api_key`` is optional (the catalog and health routes are free), but every
     data route needs one (a ``ck_live_`` key), created at
-    https://account.close.city. Usable as a context manager.
+    https://account.close.city (5,000 free tokens on signup, no card). When
+    ``api_key`` is not given, the ``CLOSECITY_KEY`` environment variable is used
+    if set. Usable as a context manager.
 
     ``output`` sets how results come back, and defaults to ``"spatial"``:
 
@@ -192,6 +195,9 @@ class Client:
         http_client: httpx.Client | None = None,
         transport: httpx.BaseTransport | None = None,
     ):
+        if api_key is None:
+            api_key = os.getenv("CLOSECITY_KEY") or None
+        self._has_key = bool(api_key)
         self.output = _check_output(output)
         headers = {"Accept": "application/json"}
         if api_key:
@@ -257,9 +263,16 @@ class Client:
             body = resp.json() if resp.content else {}
             if not isinstance(body, dict):
                 body = {"title": str(body)}
+            hint = None
+            if resp.status_code == 401 and not self._has_key:
+                hint = (
+                    "No API key set. Pass Client(api_key=...) or set the "
+                    "CLOSECITY_KEY environment variable. Create a free key "
+                    "(5,000 tokens, no card) at https://account.close.city."
+                )
             raise errors.error_from_problem(
                 resp.status_code, body, request_id,
-                _retry_after(resp.headers.get("Retry-After")),
+                _retry_after(resp.headers.get("Retry-After")), hint,
             )
         return Reply(
             data = resp.json() if resp.content else None,

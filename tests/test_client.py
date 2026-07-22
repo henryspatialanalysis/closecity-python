@@ -234,3 +234,57 @@ def test_isochrone_contours_list_becomes_csv():
     make_client(handler).isochrone(block = "410390020001010",
                                    contours = [15, 30, 45])
     assert seen["contours"] == "15,30,45"
+
+
+# -- api key sourcing --------------------------------------------------------
+
+def test_api_key_read_from_environment(monkeypatch):
+    monkeypatch.setenv("CLOSECITY_KEY", "ck_live_env")
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json = {"modes": []})
+
+    Client(base_url = "https://api.close.city", output = "raw",
+           transport = httpx.MockTransport(handler)).modes()
+    assert seen["auth"] == "Bearer ck_live_env"
+
+
+def test_explicit_key_overrides_environment(monkeypatch):
+    monkeypatch.setenv("CLOSECITY_KEY", "ck_live_env")
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json = {"modes": []})
+
+    Client("ck_live_explicit", base_url = "https://api.close.city",
+           output = "raw", transport = httpx.MockTransport(handler)).modes()
+    assert seen["auth"] == "Bearer ck_live_explicit"
+
+
+def test_missing_key_401_adds_actionable_hint(monkeypatch):
+    monkeypatch.delenv("CLOSECITY_KEY", raising = False)
+
+    def handler(request):
+        return problem(401, "missing-key", "Provide an API key.")
+
+    client = Client(base_url = "https://api.close.city", output = "raw",
+                    transport = httpx.MockTransport(handler))
+    with pytest.raises(AuthenticationError) as ei:
+        client.block_summary("410390020001010")
+    assert ei.value.hint is not None
+    assert "CLOSECITY_KEY" in ei.value.hint
+    assert "CLOSECITY_KEY" in str(ei.value)
+
+
+def test_invalid_key_401_has_no_missing_key_hint():
+    # A key IS set (make_client passes one), so the "you forgot your key" hint
+    # must not fire on an invalid-key 401.
+    def handler(request):
+        return problem(401, "invalid-key", "Unknown or revoked API key.")
+
+    with pytest.raises(AuthenticationError) as ei:
+        make_client(handler).block_summary("410390020001010")
+    assert ei.value.hint is None

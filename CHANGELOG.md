@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+- `Client()` reads the `CLOSECITY_KEY` environment variable when no `api_key` is
+  passed, so scripts and agents can authenticate without hardcoding the key. A
+  401 with no key set now carries an actionable hint pointing at `CLOSECITY_KEY`
+  and the free-signup page (`err.hint`).
+- Ship the PEP 561 `py.typed` marker so downstream type checkers (mypy, pyright)
+  see the inline type hints.
+- Document that the client does not retry: on `RateLimitedError` /
+  `ServiceUnavailableError`, wait `err.retry_after` seconds and retry yourself.
+
 ## 1.1.0
 
 Tabular results by default, across every route.

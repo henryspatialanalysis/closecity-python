@@ -25,7 +25,9 @@ GeoDataFrames, so you can map them right away.
 ```python
 from closecity import Client
 
-# The key (ck_live_) comes from https://account.close.city
+# The key (ck_live_) comes from https://account.close.city (5,000 free tokens
+# on signup, no card). You can also set the CLOSECITY_KEY environment variable
+# and call Client() with no argument.
 close = Client("ck_live_your_key")   # use your own key here
 
 # Grocery stores within a 1.5 km walk of a point, as points:
@@ -87,6 +89,10 @@ except TokensExhaustedError:
 except CloseAPIError as err:
     print(err.status, err.slug)
 ```
+
+The client does not retry automatically. On a `RateLimitedError` or
+`ServiceUnavailableError`, wait `err.retry_after` seconds (from the
+`Retry-After` header) and retry the request yourself.
 
 ## Reference
 

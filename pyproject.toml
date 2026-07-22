@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "closecity"
-version = "1.1.0"
+version = "1.2.0"
 description = "Python client for the Close API (api.close.city). Travel times to points of interest for every US census block."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -39,6 +39,10 @@ docs = ["sphinx>=7", "furo", "sphinx-copybutton", "myst-nb", "jupytext",
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+# Ship the PEP 561 marker so downstream mypy/pyright see the inline type hints.
+closecity = ["py.typed"]
 
 [tool.ruff]
 line-length = 90
