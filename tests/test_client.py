@@ -30,7 +30,8 @@ def problem(status, slug, title, **extra):
 
 
 def make_client(handler, api_key = "ck_test_abc"):
-    return Client(api_key, base_url = "https://api.close.city",
+    # spatial = False so methods return the raw Reply / Paginator we assert on.
+    return Client(api_key, base_url = "https://api.close.city", spatial = False,
                   transport = httpx.MockTransport(handler))
 
 

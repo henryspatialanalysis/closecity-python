@@ -12,9 +12,22 @@ from shapely.geometry import Point, Polygon  # noqa: E402
 from closecity import Client, Reply, to_geopandas  # noqa: E402
 
 
-def make_client(handler):
+def make_client(handler, spatial = False):
     return Client("ck_test_abc", base_url = "https://api.close.city",
-                  transport = httpx.MockTransport(handler))
+                  spatial = spatial, transport = httpx.MockTransport(handler))
+
+
+def test_spatial_by_default_returns_a_geodataframe():
+    def handler(request):
+        return httpx.Response(200, json = {"results": [
+            {"dest_id": 1, "name": "A", "lat": 44.0, "lon": -123.0}],
+            "next_cursor": None})
+
+    # spatial defaults to True, so the method returns a GeoDataFrame directly.
+    gdf = make_client(handler, spatial = True).pois_search(
+        lat = 44.0, lon = -123.0, radius_m = 1000)
+    assert isinstance(gdf, gpd.GeoDataFrame)
+    assert list(gdf.geometry.geom_type) == ["Point"]
 
 
 # -- POI rows -> points ------------------------------------------------------

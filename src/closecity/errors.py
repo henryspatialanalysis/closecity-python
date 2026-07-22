@@ -45,7 +45,7 @@ class CloseAPIError(CloseError):
         self.extras = extras or {}
         message = f"{status} {slug}: {title}"
         if detail:
-            message += f" — {detail}"
+            message += f": {detail}"
         if request_id:
             message += f" (request {request_id})"
         super().__init__(message)
@@ -54,31 +54,31 @@ class CloseAPIError(CloseError):
 # --- families, so callers can catch broad or narrow ------------------------
 
 class BadRequestError(CloseAPIError):
-    """400 — invalid parameters, cursor, geometry, bbox, etc."""
+    """400: invalid parameters, cursor, geometry, bbox, etc."""
 
 
 class AuthenticationError(CloseAPIError):
-    """401 — missing or invalid API key."""
+    """401: missing or invalid API key."""
 
 
 class PermissionDeniedError(CloseAPIError):
-    """403 — the key's account is disabled (or membership is required)."""
+    """403: the key's account is disabled (or membership is required)."""
 
 
 class NotFoundError(CloseAPIError):
-    """404 — the block, POI, place, or point is not in the published data."""
+    """404: the block, POI, place, or point is not in the published data."""
 
 
 class RateLimitedError(CloseAPIError):
-    """429 rate-limited — too many requests; see ``retry_after``."""
+    """429 rate-limited: too many requests; see ``retry_after``."""
 
 
 class TokensExhaustedError(CloseAPIError):
-    """429 tokens-exhausted — the account's token balance is zero."""
+    """429 tokens-exhausted: the account's token balance is zero."""
 
 
 class ServiceUnavailableError(CloseAPIError):
-    """503 — a backend is briefly unavailable; the request was not charged."""
+    """503: a backend is briefly unavailable; the request was not charged."""
 
 
 # Slug -> class for the cases that need a distinct type. Everything else falls

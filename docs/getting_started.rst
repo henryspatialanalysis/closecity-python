@@ -1,103 +1,108 @@
 Getting started
 ===============
 
-This is a five-minute tour of the client. For end-to-end analyses see the
-:doc:`tutorials <tutorials/index>`.
+A short tour of the client. The tutorials go further.
 
-A client
---------
+Words you will see
+------------------
+
+A few terms come up throughout:
+
+- **Census block.** The smallest area the Census Bureau publishes. Each one has a
+  15-digit id, its **GEOID**.
+- **Destination type.** A category of place, such as grocery stores or libraries.
+  Every type has a numeric id.
+- **Mode.** How someone travels: walk, bike, or transit.
+- **Isochrone.** The area reachable from a point within a time limit, as a polygon.
+- **Catchment.** The reverse: every block that can reach a given place.
+
+Build a client
+--------------
+
+You make every request through a client.
 
 .. code-block:: python
 
    from closecity import Client
 
-   close = Client("ck_live_your_key_here")   # or Client() for the free routes
+   # The key (ck_live_ or ck_test_) comes from https://account.close.city
+   close = Client("ck_live_your_key")   # use your own key here
 
-``Client`` is usable as a context manager (``with Client(...) as close:``) so the
-underlying HTTP connection is closed for you.
-
-Free catalog (no key)
----------------------
+The catalog and lookup routes are free, so you can also start without a key:
 
 .. code-block:: python
 
    close = Client()
-   print(close.modes().data["modes"])                 # walk / bike / transit
-   print(close.destination_types().data["destination_types"][:3])
-   print(close.last_updated().data["last_updated"])
+   close.modes().data["modes"]                    # walk, bike, transit
+   close.last_updated().data["last_updated"]
 
-Use :meth:`~closecity.Client.destination_types` to find the numeric ``type`` ids the
-data routes filter on (e.g. grocery ``30``, restaurants ``27``, cafes ``31``,
-libraries ``43``, parks ``63``, frequent-transit stops ``61``).
+Look things up instead of guessing
+----------------------------------
 
-One metered call
-----------------
+Two free calls save you from memorising codes. Read the numeric id for a category
+from the catalog, and turn a city name into a GEOID and a centre point.
 
 .. code-block:: python
 
-   summary = close.block_summary("250173523004004", mode="walk")
-   for row in summary.results:
-       print(row["dest_type_id"], row["mode"], row["travel_time"])
+   types = close.destination_types().data["destination_types"]
+   ids = {t["label"]: t["dest_type_id"] for t in types}
+   grocery = ids["grocery_stores"]
 
-Every metered reply carries its accounting:
+   providence = close.places("Providence").data["places"][0]
+   providence["geoid"]
 
-.. code-block:: python
+Make a call and map it
+----------------------
 
-   print(summary.tokens_charged, "charged;", summary.tokens_remaining, "left")
-
-Metering is **1 token per returned row** (minimum 1 per request); isochrones are the
-exception at **10 tokens per contour**. A ``304`` revalidation is free.
-
-Pagination
-----------
-
-List endpoints return a :class:`~closecity.Paginator` that transparently follows the
-opaque cursor:
+Feature methods return a :class:`geopandas.GeoDataFrame`, so you can map the result
+straight away.
 
 .. code-block:: python
 
-   pois = close.pois_search(lat=41.823, lon=-71.412, radius_m=1500, type=31)
-   for poi in pois:                 # every record across all pages
-       print(poi["name"], poi["lat"], poi["lon"])
+   groceries = close.pois_search(lat = providence["lat"], lon = providence["lon"],
+                                 radius_m = 1500, type = grocery)
+   groceries.plot(color = "#202a5b")     # needs matplotlib
 
-   # or page-by-page, to read per-page token metadata:
-   for page in close.pois_search(lat=41.823, lon=-71.412, radius_m=1500).pages():
-       print(len(page.results), page.tokens_remaining)
+Turn spatial output off
+-----------------------
 
-Conditional requests (free revalidation)
------------------------------------------
+Set ``spatial=False`` to work with the raw data. Then list routes return a
+:class:`~closecity.Paginator` you can iterate.
 
 .. code-block:: python
 
-   first = close.block_summary("250173523004004")
-   again = close.block_summary("250173523004004", if_none_match=first.etag)
-   assert again.not_modified          # 304 — no tokens charged
+   close = Client("ck_live_your_key", spatial = False)   # use your own key here
+   for poi in close.pois_search(lat = providence["lat"], lon = providence["lon"],
+                                radius_m = 1500):
+       print(poi["name"])
+
+Block methods join census-block boundaries for you, using the ``pygris`` package
+(``pip install "closecity[tiger]"``) to download them once.
+
+Conditional requests
+--------------------
+
+Metered routes return an ``ETag``. Send it back to revalidate for free.
+
+.. code-block:: python
+
+   close = Client("ck_live_your_key", spatial = False)   # use your own key here
+   first = close.block_summary("440070036001010")
+   again = close.block_summary("440070036001010", if_none_match = first.etag)
+   assert again.not_modified
 
 Errors
 ------
 
-Problem+JSON responses become typed exceptions:
+Problem responses become typed exceptions.
 
 .. code-block:: python
 
    from closecity import TokensExhaustedError, CloseAPIError
 
    try:
-       close.block_summary("250173523004004")
+       close.block_summary("000000000000000")
    except TokensExhaustedError:
-       ...                            # out of tokens (HTTP 429)
+       ...
    except CloseAPIError as err:
        print(err.status, err.slug)
-
-Spatial output
---------------
-
-Turn a reply into a GeoDataFrame (needs ``pip install "closecity[geo]"``):
-
-.. code-block:: python
-
-   pts = close.pois_search(lat=41.823, lon=-71.412, radius_m=1500).to_geopandas()
-   iso = close.isochrone(block="250173523004004", minutes=15).to_geopandas()
-
-POIs become point geometry and isochrones become polygons offline; block replies
-join to census-block boundaries (pass ``block_geometry=`` or ``fetch=True``).

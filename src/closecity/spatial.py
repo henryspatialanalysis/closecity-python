@@ -1,20 +1,19 @@
-"""Optional spatial conversion — turn Close API replies into GeoDataFrames.
+"""Turn Close API replies into GeoDataFrames.
 
-Import-light and lazy: ``geopandas`` / ``shapely`` are needed only when you call a
-converter, and are declared under the ``geo`` extra (``pip install
-'closecity[geo]'``). The client's default return stays plain JSON.
+The client does this for you by default; this module is the machinery, and
+:func:`to_geopandas` is also usable by hand. Three response shapes are recognised
+automatically:
 
-Three response shapes are recognised automatically:
-
-* **POI rows** (``lat`` / ``lon``) — :meth:`Client.pois_search`, :meth:`block_pois`,
-  :meth:`point_pois`, :meth:`poi` — become **point** geometry, built offline.
-* **Isochrone** ``format=geojson`` — :meth:`Client.isochrone` — becomes **polygon**
-  geometry, built offline from the ``features`` envelope (which is a custom object,
-  not a bare FeatureCollection).
-* **Block rows** (``geoid`` only) — :meth:`blocks_query`, :meth:`place_blocks`,
-  :meth:`poi_catchment`, :meth:`block_summary` — become **polygons** by joining census
-  block boundaries you pass as ``block_geometry`` (a GeoDataFrame keyed on
-  ``geoid_col``), or that we pull with ``pygris`` when ``fetch=True``.
+* **POI rows** (``lat`` / ``lon``) from :meth:`Client.pois_search`,
+  :meth:`block_pois`, :meth:`point_pois`, and :meth:`poi` become **point** geometry,
+  built offline.
+* **Isochrone** replies with ``format=geojson`` from :meth:`Client.isochrone` become
+  **polygon** geometry, built offline from the ``features`` envelope (a custom
+  object, not a bare FeatureCollection).
+* **Block rows** (``geoid`` only) from :meth:`blocks_query`, :meth:`place_blocks`,
+  and :meth:`poi_catchment` become **polygons** by joining census-block boundaries.
+  Pass them as ``block_geometry`` (a GeoDataFrame keyed on ``geoid_col``), or let
+  ``fetch=True`` download them with ``pygris`` (the ``tiger`` extra).
 """
 
 from __future__ import annotations
@@ -25,14 +24,9 @@ __all__ = ["to_geopandas"]
 
 
 def _require_geopandas():
-    try:
-        import geopandas as gpd
-        from shapely.geometry import Point, shape
-    except ImportError as exc:  # pragma: no cover - exercised via install matrix
-        raise ImportError(
-            "Spatial conversion needs geopandas + shapely. "
-            "Install the extra: pip install 'closecity[geo]'."
-        ) from exc
+    # geopandas is a required dependency; this import always succeeds.
+    import geopandas as gpd
+    from shapely.geometry import Point, shape
     return gpd, Point, shape
 
 
@@ -83,7 +77,8 @@ def _fetch_blocks(geoids: list[str], geoid_col: str):
         import pygris
     except ImportError as exc:
         raise ImportError(
-            "fetch=True needs pygris (and pandas). Install: pip install 'closecity[geo]'."
+            "Mapping blocks needs pygris. Install: pip install 'closecity[tiger]', "
+            "or build the client with spatial=False."
         ) from exc
     pairs = sorted({(g[:2], g[2:5]) for g in geoids if g})
     frames = [pygris.blocks(state = s, county = c, year = 2020, cache = True)

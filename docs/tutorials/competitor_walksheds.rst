@@ -1,98 +1,86 @@
 Competitor walksheds
 ====================
 
-**Question.** For a given business in a given industry, which **competitors also
-serve its walkshed** — the residential blocks that can walk to it — and how much do
-their catchments overlap?
+A coffee shop wants to know which competitors draw from the same neighbourhood it
+does. Its **walkshed** is every residential block that can walk to it. This tutorial
+finds nearby competitors and measures how much of that walkshed they share. The
+example city is Providence, Rhode Island.
 
-We use **Providence, RI** and the coffee-shop trade (destination type ``31``).
+Set up
+------
 
-Pick the business and its industry
-----------------------------------
+Read the cafe category id from the free catalog and find the city centre.
 
 .. code-block:: python
 
    from closecity import Client
-   close = Client("ck_live_your_key_here")
 
-   CAFE = 31   # from close.destination_types()
-   providence = close.places("Providence").data["places"][0]
-   center = {"lon": providence["lon"], "lat": providence["lat"]}
+   close = Client("ck_live_your_key")   # use your own key here
 
-   # Cafes near downtown; take the first as "our" business.
-   cafes = list(close.pois_search(lat=center["lat"], lon=center["lon"],
-                                  radius_m=1200, type=CAFE))
-   ours = cafes[0]
-   competitors = cafes[1:6]          # the five nearest others
-   print("our shop:", ours["name"])
+   types = close.destination_types().data["destination_types"]
+   ids = {t["label"]: t["dest_type_id"] for t in types}
+   cafe = ids["cafes"]
+
+   city = close.places("Providence").data["places"][0]
+
+Find the shops
+--------------
+
+Search for cafes near downtown. The result is a GeoDataFrame of points, so plot them
+and pick one shop as the subject.
+
+.. code-block:: python
+
+   cafes = close.pois_search(lat = city["lat"], lon = city["lon"],
+                             radius_m = 1200, type = cafe)
+   cafes.plot(color = "#202a5b")     # needs matplotlib
+
+   ours = cafes.iloc[0]
+   ours["name"]
 
 Our walkshed
 ------------
 
-Every block that can reach our shop within a 10-minute walk:
+Ask for every block that can reach our shop within a 10-minute walk. This comes back
+as polygons, with the block boundaries downloaded by ``pygris``.
 
 .. code-block:: python
 
-   def walkshed(dest_id):
-       rows = list(close.poi_catchment(dest_id, mode="walk", max_minutes=10))
-       return {r["geoid"] for r in rows}
+   our_shed = close.poi_catchment(int(ours["dest_id"]), mode = "walk",
+                                  max_minutes = 10)
+   our_geoids = set(our_shed.geoid)
 
-   ours_shed = walkshed(ours["dest_id"])
-   print(len(ours_shed), "blocks in our walkshed")
+   ax = our_shed.plot(color = "#eef0f7", edgecolor = "#c6cbe0")
+   cafes.iloc[[0]].plot(ax = ax, color = "#f36e21", markersize = 60)
 
-Which competitors contest it
-----------------------------
+Who else serves it
+------------------
 
-For each competitor, how much of *our* walkshed they also serve — local set math,
-free once the catchments are pulled:
+For each of the nearest competitors, pull their walkshed and count the blocks they
+share with ours. Both walksheds are just sets of block ids, so the overlap is a plain
+set intersection.
 
 .. code-block:: python
 
-   for c in competitors:
-       shed = walkshed(c["dest_id"])
-       shared = ours_shed & shed
-       print(f"{c['name']:30} shares {len(shared):3} blocks "
-             f"({len(shared)/len(ours_shed):.0%} of ours)")
+   for i in range(1, 6):
+       competitor = cafes.iloc[i]
+       their_shed = close.poi_catchment(int(competitor["dest_id"]), mode = "walk",
+                                        max_minutes = 10)
+       shared = our_geoids & set(their_shed.geoid)
+       print(f"{competitor['name']:28} {len(shared):3} shared blocks "
+             f"({len(shared) / len(our_shed):.0%} of ours)")
 
 Map the contested ground
 ------------------------
 
-Convert POIs to points and the shared blocks to polygons:
+Draw our walkshed, then every cafe on top, with our shop highlighted. The clusters of
+competitors inside the walkshed are the ones competing for the same walk-in traffic.
 
 .. code-block:: python
 
-   import geopandas as gpd
-   import pandas as pd
+   ax = our_shed.plot(color = "#eef0f7", edgecolor = "#c6cbe0")
+   cafes.plot(ax = ax, color = "#202a5b")
+   cafes.iloc[[0]].plot(ax = ax, color = "#f36e21", markersize = 60)
 
-   pts = close.pois_search(lat=center["lat"], lon=center["lon"],
-                           radius_m=1200, type=CAFE).to_geopandas()
-
-   contested = ours_shed.copy()
-   for c in competitors:
-       contested |= (ours_shed & walkshed(c["dest_id"]))
-
-   shed_blocks = close.poi_catchment(ours["dest_id"], mode="walk",
-                                     max_minutes=10).to_geopandas(fetch=True)
-   ax = shed_blocks.plot(color="#eef0f7", edgecolor="#c6cbe0")
-   pts.plot(ax=ax, color="#202a5b", markersize=20)          # all cafes
-   pts[pts.dest_id == ours["dest_id"]].plot(ax=ax, color="#f36e21", markersize=60)
-
-The map shows our shop's walkshed, every competitor in it, and the blocks each one
-contests — a first cut at cannibalisation and white-space for a new location.
-
-Scaling to a county or state
-----------------------------
-
-The same recipe runs over a wider area — search a bounding box instead of a radius,
-and iterate businesses — but catchment pulls are metered per block, so a county-wide
-sweep can run into thousands of tokens. Keep ``max_minutes`` small and page in
-batches to stay on budget.
-
-Token cost
-----------
-
-- ``places`` + one ``pois_search``: free lookup + **~a few dozen tokens**.
-- Six 10-minute walk catchments (ours + five competitors), ~50–150 blocks each:
-  **~600 tokens** total.
-
-Well inside a 5,000-token month for a single business and its near neighbours.
+The same recipe works over a wider area: search a bounding box instead of a radius,
+and loop over more shops.

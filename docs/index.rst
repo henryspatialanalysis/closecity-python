@@ -1,29 +1,23 @@
 closecity
 =========
 
-Python client for the **Close API** (`api.close.city <https://api.close.city>`_) —
-travel times from every US census block to nearby points of interest, by walking,
-biking, and public transit.
+Python client for the Close API (`api.close.city <https://api.close.city>`_). Get
+travel times from every US census block to nearby places, on foot, by bike, and by
+public transit. This is the data behind `close.city <https://close.city>`_.
 
 .. code-block:: python
 
    from closecity import Client
 
-   # The catalog and health routes are free; data routes need a key from
-   # https://account.close.city
-   with Client("ck_live_your_key_here") as close:
-       # Fastest walk time to each destination category from a census block.
-       summary = close.block_summary("250173523004004", mode="walk")
-       for row in summary.results:
-           print(row["dest_type_id"], row["travel_time"])
+   # The key (ck_live_ or ck_test_) comes from https://account.close.city
+   close = Client("ck_live_your_key")   # use your own key here
 
-       # Metering is surfaced on every metered reply.
-       print(summary.tokens_charged, "charged;", summary.tokens_remaining, "left")
+   # Feature methods return a GeoDataFrame, ready to map:
+   groceries = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500)
+   groceries.plot()
 
-The client mirrors the public API exactly and makes its mechanics first-class:
-per-request **metering** (``tokens_charged`` / ``tokens_remaining``), **ETag / 304**
-conditional requests, opaque-cursor **pagination**, typed **RFC 9457** errors, and
-opt-in **GeoPandas** output.
+Install with ``pip install closecity``. The catalog and lookup routes are free; the
+data routes need a key from `account.close.city <https://account.close.city>`_.
 
 .. toctree::
    :maxdepth: 2

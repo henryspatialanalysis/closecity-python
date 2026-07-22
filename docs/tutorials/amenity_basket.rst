@@ -1,134 +1,121 @@
 The amenity basket
 ==================
 
-**Question.** If we want every resident to be able to **walk to a basket of six
-everyday amenities**, what share of the population is already covered — and which
-**five new amenities**, sited where, would raise that share the most?
-
-This is the population-weighted "15-minute city" method from
+A city planner wants every resident to be able to walk to a basket of six everyday
+amenities: a grocery store, a library, a park, a frequent-transit stop, a restaurant,
+and a cafe. This tutorial measures how many residents already have that, and shows
+where the gaps are. The idea follows
 `this analysis <https://nathenry.com/writing/2023-02-07-seattle-walkability.html>`_,
-applied here to **Richmond, VA**. The basket:
+here applied to Richmond, Virginia.
+
+Set up
+------
+
+Read the six category ids from the free catalog, and turn the city name into a centre
+point.
 
 .. code-block:: python
 
    from closecity import Client
-   close = Client("ck_live_your_key_here")
 
-   BASKET = {30: "grocery", 43: "library", 63: "park",
-             61: "frequent transit", 27: "restaurant", 31: "cafe"}
-   THRESHOLD = 15   # minutes, walking
+   close = Client("ck_live_your_key")   # use your own key here
 
-Pull per-block walk times and population
-----------------------------------------
+   types = close.destination_types().data["destination_types"]
+   ids = {t["label"]: t["dest_type_id"] for t in types}
+   basket = {
+       "grocery": ids["grocery_stores"],
+       "library": ids["libraries"],
+       "park": ids["parks"],
+       "transit": ids["frequent_transit"],
+       "restaurant": ids["restaurants"],
+       "cafe": ids["cafes"],
+   }
 
-Resolve the city (free), then pull a bounded disc around downtown with population:
+   city = close.places("Richmond").data["places"][0]
 
-.. code-block:: python
+Pull the blocks, with population
+--------------------------------
 
-   richmond = close.places("Richmond").data["places"][0]
-   center = {"lon": richmond["lon"], "lat": richmond["lat"]}
-
-   rows = list(close.blocks_query(
-       center=center, radius_m=2500, mode="walk",
-       type=list(BASKET), include_population=True,
-   ))
-
-   from collections import defaultdict
-   times = defaultdict(dict)
-   pop = {}
-   for r in rows:
-       times[r["geoid"]][r["dest_type_id"]] = r["travel_time"]
-       pop[r["geoid"]] = r.get("population") or 0
-
-Current coverage
-----------------
-
-All of this is local and free:
+One call gets the walk time from every block near downtown to each of the six
+categories, along with each block's population. The result is a GeoDataFrame.
 
 .. code-block:: python
 
-   def covered(t, type_id):
-       return t.get(type_id, 99) <= THRESHOLD
+   blocks = close.blocks_query(
+       center = {"lon": city["lon"], "lat": city["lat"]}, radius_m = 2500,
+       mode = "walk", type = list(basket.values()), include_population = True)
 
-   total = sum(pop.values())
-   for type_id, name in BASKET.items():
-       share = sum(pop[g] for g, t in times.items() if covered(t, type_id)) / total
-       print(f"{name:18} {share:5.0%}")
+   # One row per block, for population and for mapping.
+   one_per_block = blocks.drop_duplicates("geoid")
+   total_pop = one_per_block["population"].sum()
 
-   fully = [g for g, t in times.items()
-            if all(covered(t, ti) for ti in BASKET)]
-   basket_share = sum(pop[g] for g in fully) / total
-   print(f"\nAll six amenities: {basket_share:.0%} of residents")
+Coverage, one amenity at a time
+-------------------------------
 
-In the study area only a small share of residents can reach *all six* on foot —
-parks and restaurants are widespread, while **grocery** and **frequent transit** are
-the binding constraints.
-
-Which amenities to add, and where
----------------------------------
-
-A new facility of type *X* placed at a block covers every block within a 15-minute
-walk of it — exactly a ``direction="from"`` walk isochrone (10 tokens each). We greedily
-pick the five sites that turn the most *currently-uncovered* residents into
-fully-covered ones.
+For each amenity, a block counts as covered when it is within a 15-minute walk. Add
+up the population of the covered blocks.
 
 .. code-block:: python
 
-   import geopandas as gpd
+   for name, type_id in basket.items():
+       covered = set(blocks.loc[(blocks.dest_type_id == type_id) &
+                                (blocks.travel_time <= 15), "geoid"])
+       pop = one_per_block.loc[one_per_block.geoid.isin(covered), "population"].sum()
+       print(f"{name:11} {100 * pop / total_pop:3.0f}%")
 
-   # Block geometries (for candidate-site centroids); reuse one pull's rows.
-   blocks = close.blocks_query(center=center, radius_m=2500, mode="walk",
-                               type=[30]).to_geopandas(fetch=True)
-   blocks = blocks.set_index("geoid")
-   blocks["centroid"] = blocks.geometry.representative_point()
+Parks and restaurants tend to be everywhere; groceries and frequent transit are
+usually the hardest to reach. Map one amenity to see the pattern.
 
-   def missing(g):
-       return [ti for ti in BASKET if not covered(times.get(g, {}), ti)]
+.. code-block:: python
 
-   # Candidate sites: uncovered, populous blocks, each missing exactly one amenity
-   # (adding that one amenity flips them to fully-covered).
-   candidates = sorted(
-       (g for g in times if len(missing(g)) == 1 and g in blocks.index),
-       key=lambda g: pop[g], reverse=True,
-   )[:25]
+   near_transit = set(blocks.loc[(blocks.dest_type_id == basket["transit"]) &
+                                 (blocks.travel_time <= 15), "geoid"])
+   one_per_block = one_per_block.assign(
+       has_transit = one_per_block.geoid.isin(near_transit))
+   one_per_block.plot(column = "has_transit", cmap = "Greens")   # needs matplotlib
 
-   def walkshed(g):
-       c = blocks.loc[g, "centroid"]
-       iso = close.isochrone(lon=c.x, lat=c.y, mode="walk",
-                             direction="from", minutes=THRESHOLD, format="blocks")
-       return {b["geoid"] for b in iso.data["blocks"]}
+Who can reach all six
+---------------------
 
-   sheds = {g: (missing(g)[0], walkshed(g)) for g in candidates}
+A block is fully covered only if all six amenities are within 15 minutes. Start with
+every block and remove the ones that miss any amenity.
 
-   # Greedy: repeatedly take the site adding the most newly-covered population.
-   chosen, still_missing = [], {g: missing(g)[0] for g in times if missing(g)}
-   for _ in range(5):
-       def gain(site):
-           amenity, shed = sheds[site]
-           return sum(pop[g] for g in shed
-                      if still_missing.get(g) == amenity)
-       best = max(sheds, key=gain)
-       amenity, shed = sheds[best]
-       newly = [g for g in shed if still_missing.get(g) == amenity]
-       chosen.append((best, BASKET[amenity], sum(pop[g] for g in newly)))
-       for g in newly:
-           still_missing.pop(g, None)
-       del sheds[best]
+.. code-block:: python
 
-   for site, amenity, gained in chosen:
-       print(f"add a {amenity} near block {site}: +{gained:,} residents covered")
+   covered_all = set(one_per_block.geoid)
+   for type_id in basket.values():
+       covered = set(blocks.loc[(blocks.dest_type_id == type_id) &
+                                (blocks.travel_time <= 15), "geoid"])
+       covered_all &= covered
 
-The result is a ranked, mapped list of five concrete interventions — *"a grocery
-here, a transit stop there"* — each annotated with the population it brings into
-walkable range of the whole basket.
+   basket_pop = one_per_block.loc[one_per_block.geoid.isin(covered_all),
+                                  "population"].sum()
+   print(f"All six amenities: {100 * basket_pop / total_pop:.0f}% of residents")
 
-Token cost
-----------
+   one_per_block = one_per_block.assign(
+       full_basket = one_per_block.geoid.isin(covered_all))
+   one_per_block.plot(column = "full_basket", cmap = "Oranges")
 
-- ``places``: free. ``blocks_query`` disc (~700 blocks × 6 categories):
-  **~4,000 tokens** (cache ``rows`` and reuse it for the geometry pull).
-- Up to 25 candidate isochrones (1 contour each, 10 tokens): **~250 tokens**.
+Which amenity to add first
+--------------------------
 
-Around 4,300 tokens — inside a 5,000-token month. Shrink ``radius_m`` (or the
-candidate count) to trade coverage for budget; widen it, across several months, for a
-whole city.
+Look at the residents who are not yet fully covered, and count how many of them are
+missing each amenity. The amenity that the most people lack is the one to add first.
+
+.. code-block:: python
+
+   uncovered = set(one_per_block.geoid) - covered_all
+   for name, type_id in basket.items():
+       covered = set(blocks.loc[(blocks.dest_type_id == type_id) &
+                                (blocks.travel_time <= 15), "geoid"])
+       lacking = uncovered - covered
+       pop = one_per_block.loc[one_per_block.geoid.isin(lacking), "population"].sum()
+       print(f"{name:11} {pop:6.0f} residents would gain access")
+
+Map the uncovered blocks to see where new amenities would do the most good.
+
+.. code-block:: python
+
+   one_per_block = one_per_block.assign(
+       uncovered = one_per_block.geoid.isin(uncovered))
+   one_per_block.plot(column = "uncovered", cmap = "Blues")

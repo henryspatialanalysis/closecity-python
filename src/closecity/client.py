@@ -63,11 +63,11 @@ class Reply:
         return self.data.get("next_cursor") if isinstance(self.data, dict) else None
 
     def to_geopandas(self, **kwargs):
-        """Convert this reply to a :class:`geopandas.GeoDataFrame` (needs the
-        ``geo`` extra: ``pip install 'closecity[geo]'``).
+        """Convert this reply to a :class:`geopandas.GeoDataFrame`.
 
-        Points for POI replies, polygons for isochrone ``format=geojson``; block
-        replies need a ``block_geometry=`` GeoDataFrame or ``fetch=True``. See
+        Points for POI replies, polygons for isochrone ``format=geojson``. Block
+        replies need a ``block_geometry=`` GeoDataFrame or ``fetch=True`` (which
+        downloads TIGER blocks with ``pygris``). See
         :func:`closecity.spatial.to_geopandas`.
         """
         from . import spatial
@@ -117,7 +117,7 @@ class Paginator:
 
     def to_geopandas(self, **kwargs):
         """Collect every page and convert the rows to a
-        :class:`geopandas.GeoDataFrame` (needs the ``geo`` extra). See
+        :class:`geopandas.GeoDataFrame`. See
         :func:`closecity.spatial.to_geopandas`.
         """
         from . import spatial
@@ -127,9 +127,12 @@ class Paginator:
 class Client:
     """Client for the Close API.
 
-    ``api_key`` is optional — the catalog and health routes are free — but every
-    data route needs one (``ck_live_…`` / ``ck_test_…``), created at
+    ``api_key`` is optional (the catalog and health routes are free), but every
+    data route needs one (a ``ck_live_`` or ``ck_test_`` key), created at
     https://account.close.city. Usable as a context manager.
+
+    Feature methods return a :class:`geopandas.GeoDataFrame` when ``spatial`` is
+    True (the default), or the raw :class:`Reply` / :class:`Paginator` otherwise.
     """
 
     def __init__(
@@ -138,9 +141,11 @@ class Client:
         *,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = 30.0,
+        spatial: bool = True,
         http_client: httpx.Client | None = None,
         transport: httpx.BaseTransport | None = None,
     ):
+        self.spatial = spatial
         headers = {"Accept": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -148,6 +153,13 @@ class Client:
             base_url = base_url.rstrip("/"), timeout = timeout, headers = headers,
             transport = transport,
         )
+
+    def _spatial(self, source):
+        """Convert a feature reply to a GeoDataFrame when ``spatial`` is on."""
+        if not self.spatial:
+            return source
+        from . import spatial
+        return spatial.to_geopandas(source, fetch = True)
 
     # -- context manager ----------------------------------------------------
 
@@ -225,9 +237,9 @@ class Client:
 
     def places(self, q: str, *, limit: int | None = None) -> Reply:
         """Search census places by name (free). Each match carries the place's
-        GEOID and WGS84 centroid — feed a centre into `blocks_query(center=...)`
+        GEOID and WGS84 centroid. Feed a centre into `blocks_query(center=...)`,
         or a GEOID into `place_blocks(...)`. `q` is a name substring; `limit`
-        caps the matches (1-20)."""
+        caps the matches (1 to 20)."""
         return self._get("/v1/places", {"q": q, "limit": limit})
 
     # -- origin block / point (metered) -------------------------------------
@@ -248,12 +260,13 @@ class Client:
         max_minutes = None, limit = None,
     ) -> Paginator:
         """Every nearby POI and its travel time from a block, one row per (POI,
-        mode). Returns a `Paginator`."""
-        return Paginator(
+        mode). Returns a GeoDataFrame of points, or a `Paginator` when the client
+        was built with `spatial=False`."""
+        return self._spatial(Paginator(
             self, "GET", f"/v1/blocks/{geoid}/pois",
             _clean({"mode": mode, "type": type, "dest_id": dest_id,
                     "max_minutes": max_minutes, "limit": limit}),
-        )
+        ))
 
     def point_summary(
         self, lat: float, lon: float, *, mode = None, type = None,
@@ -272,12 +285,12 @@ class Client:
         max_minutes = None, limit = None,
     ) -> Paginator:
         """Like `block_pois`, but from the block containing a lat/lon. Returns a
-        `Paginator`."""
-        return Paginator(
+        GeoDataFrame of points, or a `Paginator` when `spatial=False`."""
+        return self._spatial(Paginator(
             self, "GET", "/v1/point/pois",
             _clean({"lat": lat, "lon": lon, "mode": mode, "type": type,
                     "dest_id": dest_id, "max_minutes": max_minutes, "limit": limit}),
-        )
+        ))
 
     # -- POI search / detail / catchment (metered) --------------------------
 
@@ -285,29 +298,35 @@ class Client:
         self, *, lat = None, lon = None, radius_m = None, bbox = None, type = None,
         q = None, limit = None,
     ) -> Paginator:
-        """Search POIs by bounding box (``bbox``) or radius (``lat``+``lon``+
-        ``radius_m``)."""
-        return Paginator(
+        """Search POIs by bounding box (``bbox``) or radius (``lat`` + ``lon`` +
+        ``radius_m``). Returns a GeoDataFrame of points, or a `Paginator` when
+        `spatial=False`."""
+        return self._spatial(Paginator(
             self, "GET", "/v1/pois",
             _clean({"lat": lat, "lon": lon, "radius_m": radius_m, "bbox": bbox,
                     "type": type, "q": q, "limit": limit}),
-        )
+        ))
 
-    def poi(self, dest_id: int, *, if_none_match: str | None = None) -> Reply:
-        """Name, location, address, types, and whitelisted attributes for one POI."""
-        return self._get(f"/v1/pois/{dest_id}", if_none_match = if_none_match)
+    def poi(self, dest_id: int, *, if_none_match: str | None = None):
+        """Name, location, address, types, and whitelisted attributes for one POI.
+        Returns a one-row GeoDataFrame of a point, or a `Reply` when
+        `spatial=False`."""
+        return self._spatial(
+            self._get(f"/v1/pois/{dest_id}", if_none_match = if_none_match)
+        )
 
     def poi_catchment(
         self, dest_id: int, *, mode = None, block = None, max_minutes = None,
         limit = None,
     ) -> Paginator:
         """Every census block that can reach a POI, one row per (block, mode).
-        Returns a `Paginator`."""
-        return Paginator(
+        Returns a GeoDataFrame of block polygons, or a `Paginator` when
+        `spatial=False`."""
+        return self._spatial(Paginator(
             self, "GET", f"/v1/pois/{dest_id}/catchment",
             _clean({"mode": mode, "block": block, "max_minutes": max_minutes,
                     "limit": limit}),
-        )
+        ))
 
     # -- areal (metered) ----------------------------------------------------
 
@@ -317,27 +336,29 @@ class Client:
         mode: Sequence[str] | None = None, include_population: bool | None = None,
         limit: int | None = None,
     ) -> Paginator:
-        """Blocks within a GeoJSON ``polygon`` or a ``center``+``radius_m``.
-        Paginated via a cursor carried in the request body."""
+        """Blocks within a GeoJSON ``polygon`` or a ``center`` + ``radius_m``.
+        Returns a GeoDataFrame of block polygons, or a `Paginator` when
+        `spatial=False`."""
         body = _clean({
             "polygon": polygon, "center": center, "radius_m": radius_m,
             "type": type, "mode": mode, "include_population": include_population,
             "limit": limit,
         })
-        return Paginator(self, "POST", "/v1/blocks/query", _json = body,
-                         _cursor_in = "json")
+        return self._spatial(Paginator(self, "POST", "/v1/blocks/query",
+                                       _json = body, _cursor_in = "json"))
 
     def place_blocks(
         self, geoid: str, *, mode = None, type = None, include_population = None,
         limit = None,
     ) -> Paginator:
-        """Per-block travel times for every census block in a place (city/town),
-        by place GEOID. Returns a `Paginator`."""
-        return Paginator(
+        """Per-block travel times for every census block in a place (city or
+        town), by place GEOID. Returns a GeoDataFrame of block polygons, or a
+        `Paginator` when `spatial=False`."""
+        return self._spatial(Paginator(
             self, "GET", f"/v1/places/{geoid}/blocks",
             _clean({"mode": mode, "type": type,
                     "include_population": include_population, "limit": limit}),
-        )
+        ))
 
     # -- isochrone ----------------------------------------------------------
 
@@ -345,19 +366,21 @@ class Client:
         self, *, block = None, lon = None, lat = None, mode = None, direction = None,
         minutes = None, contours = None, format = None, v = None,
         if_none_match: str | None = None,
-    ) -> Reply:
-        """Travel-time contours from a ``block`` (GEOID) or ``lon``+``lat``.
+    ):
+        """Travel-time contours from a ``block`` (GEOID) or ``lon`` + ``lat``.
         Pass ``minutes`` (single) or ``contours`` (up to 4 ascending levels, a
-        list or a comma string). Charged 10 tokens per contour level."""
+        list or a comma string). Returns a GeoDataFrame of contour polygons, or a
+        `Reply` when `spatial=False` or `format="blocks"`."""
         if isinstance(contours, (list, tuple)):
             contours = ",".join(str(c) for c in contours)
-        return self._get(
+        reply = self._get(
             "/v1/isochrone",
             {"block": block, "lon": lon, "lat": lat, "mode": mode,
              "direction": direction, "minutes": minutes, "contours": contours,
              "format": format, "v": v},
             if_none_match = if_none_match,
         )
+        return reply if format == "blocks" else self._spatial(reply)
 
     def isochrone_meta(self, *, if_none_match: str | None = None) -> Reply:
         """The active isochrone store version, available directions/modes, and the

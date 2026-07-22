@@ -1,11 +1,10 @@
-"""closecity — Python client for the Close API (https://api.close.city).
+"""closecity: Python client for the Close API (https://api.close.city).
 
     from closecity import Client
 
-    with Client("ck_live_…") as close:
-        print(close.block_summary("410390020001010").data)
-        for poi in close.pois_search(lat = 44.05, lon = -123.09, radius_m = 2000):
-            print(poi["name"])
+    close = Client("ck_live_your_key")   # use your own key here
+    groceries = close.pois_search(lat = 44.05, lon = -123.09, radius_m = 2000)
+    groceries.plot()
 """
 
 from .client import Client, Paginator, Reply

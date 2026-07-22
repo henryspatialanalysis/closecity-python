@@ -1,104 +1,101 @@
 Looking for a home
 ==================
 
-**Question.** In a city, which blocks are within a **10-minute walk of a
-supermarket**, a **5-minute walk of a restaurant**, and a **20-minute walk of a
-frequent-transit stop**? Then: given two workplaces, which of those blocks sit in
-the overlap of both commutes — the obvious neighbourhood to choose?
+Say you are moving to a new city and want to live somewhere walkable. Here you find
+the blocks that are within a 10-minute walk of a grocery store, a 5-minute walk of a
+restaurant, and a 20-minute walk of a frequent-transit stop. Then you narrow those
+blocks to the overlap of two commutes. The example city is Somerville, Massachusetts.
 
-We use **Somerville, MA** — dense and transit-rich, so all three criteria bite.
+Set up
+------
 
-Find the place and the type ids
--------------------------------
-
-Both lookups are free (no tokens):
+Build a client, then read the pieces you need from the free catalog.
 
 .. code-block:: python
 
    from closecity import Client
-   close = Client("ck_live_your_key_here")
+   import geopandas as gpd
 
-   somerville = close.places("Somerville").data["places"][0]
-   geoid = somerville["geoid"]          # census place GEOID
+   close = Client("ck_live_your_key")   # use your own key here
 
-   # Confirm the destination-type ids we need.
-   types = {t["name"]: t["dest_type_id"]
-            for t in close.destination_types().data["destination_types"]}
-   GROCERY, RESTAURANT, FREQ_TRANSIT = 30, 27, 61   # from the catalog
+   types = close.destination_types().data["destination_types"]
+   ids = {t["label"]: t["dest_type_id"] for t in types}
+   grocery = ids["grocery_stores"]
+   restaurant = ids["restaurants"]
+   transit = ids["frequent_transit"]
 
-Pull the per-block walk times
------------------------------
+   city = close.places("Somerville").data["places"][0]
 
-One bounded request for the whole (small) city, walking only, just the three
-categories:
-
-.. code-block:: python
-
-   rows = list(close.place_blocks(
-       geoid, mode="walk", type=[GROCERY, RESTAURANT, FREQ_TRANSIT],
-   ))
-
-   # Pivot to one record per block: {geoid: {type_id: minutes}}
-   from collections import defaultdict
-   by_block = defaultdict(dict)
-   for r in rows:
-       by_block[r["geoid"]][r["dest_type_id"]] = r["travel_time"]
-
-Filter to the blocks that meet all three thresholds — this is local and free:
-
-.. code-block:: python
-
-   def meets(t):
-       return (t.get(GROCERY, 99) <= 10
-               and t.get(RESTAURANT, 99) <= 5
-               and t.get(FREQ_TRANSIT, 99) <= 20)
-
-   candidates = [g for g, t in by_block.items() if meets(t)]
-   print(len(candidates), "candidate blocks")
-
-Map the candidates
+See what is around
 ------------------
 
-Block replies carry only GEOIDs, so join census-block boundaries. With
-``pip install "closecity[geo]"`` the SDK can pull them for you:
+Look at the raw ingredients first. Each search returns points, so plot the three
+amenities as three layers.
 
 .. code-block:: python
 
-   import geopandas as gpd
-   blocks = close.place_blocks(geoid, mode="walk", type=[GROCERY]).to_geopandas(
-       fetch=True)                       # TIGER 2020 blocks via pygris
-   hits = blocks[blocks.geoid.isin(candidates)]
-   hits.plot(color="#f36e21", edgecolor="none")
+   groceries = close.pois_search(lat = city["lat"], lon = city["lon"],
+                                 radius_m = 3000, type = grocery)
+   restaurants = close.pois_search(lat = city["lat"], lon = city["lon"],
+                                   radius_m = 3000, type = restaurant)
+   stops = close.pois_search(lat = city["lat"], lon = city["lon"],
+                             radius_m = 3000, type = transit)
 
-Narrow to the overlap of two commutes
--------------------------------------
+   ax = restaurants.plot(color = "#c6cbe0", markersize = 6)
+   groceries.plot(ax = ax, color = "#058040")
+   stops.plot(ax = ax, color = "#f36e21", marker = "^")
 
-Say the two of you work near Kendall Square and downtown Boston. A **20-minute
-transit isochrone** from each workplace is 10 tokens per contour:
+Find the blocks that qualify
+----------------------------
+
+Pull the per-block walk times for the whole city. The result is a GeoDataFrame with
+one row per (block, category); block boundaries come from ``pygris``, downloaded once
+and cached.
 
 .. code-block:: python
 
-   kendall = close.isochrone(lon=-71.0865, lat=42.3625, mode="transit",
-                             direction="from", minutes=20).to_geopandas()
-   downtown = close.isochrone(lon=-71.0589, lat=42.3555, mode="transit",
-                              direction="from", minutes=20).to_geopandas()
+   blocks = close.place_blocks(city["geoid"], mode = "walk",
+                               type = [grocery, restaurant, transit])
 
-   commute_overlap = gpd.overlay(kendall, downtown, how="intersection")
-   # Candidate homes inside both commutes:
-   chosen = gpd.sjoin(hits, commute_overlap, predicate="intersects")
-   chosen.plot(color="#058040")
+Each amenity has its own rule. Take the blocks that pass each rule, then keep the
+blocks that pass all three.
 
-The blocks in ``chosen`` are walkable to groceries, food, and frequent transit
-**and** a reasonable transit commute for both workers — a short, ranked shortlist.
+.. code-block:: python
 
-Token cost
-----------
+   near_grocery = set(blocks.loc[(blocks.dest_type_id == grocery) &
+                                 (blocks.travel_time <= 10), "geoid"])
+   near_restaurant = set(blocks.loc[(blocks.dest_type_id == restaurant) &
+                                    (blocks.travel_time <= 5), "geoid"])
+   near_transit = set(blocks.loc[(blocks.dest_type_id == transit) &
+                                 (blocks.travel_time <= 20), "geoid"])
 
-- ``places`` + ``destination_types``: **free**.
-- ``place_blocks`` over Somerville (~800 blocks × 3 categories): **~2,400 tokens**
-  (once; reuse the result for the map by caching ``rows``).
-- Two transit isochrones (1 contour each): **~20 tokens**.
+   candidates = near_grocery & near_restaurant & near_transit
+   winners = blocks[blocks.geoid.isin(candidates)]
 
-Comfortably inside a 5,000-token month. For a larger city, replace
-``place_blocks(geoid, …)`` with a bounded disc —
-``blocks_query(center={"lon": …, "lat": …}, radius_m=2500, …)`` — to cap the pull.
+   ax = blocks.plot(color = "#eef0f7", edgecolor = "white")
+   winners.plot(ax = ax, color = "#f36e21")
+
+Narrow to a shared commute
+--------------------------
+
+Suppose two of you work in different places. A transit isochrone from each workplace
+shows how far each commute reaches. Both come back as polygons.
+
+.. code-block:: python
+
+   work_a = close.isochrone(lon = -71.0865, lat = 42.3625, mode = "transit",
+                            direction = "from", minutes = 20)
+   work_b = close.isochrone(lon = -71.0589, lat = 42.3555, mode = "transit",
+                            direction = "from", minutes = 20)
+
+   both_commutes = gpd.overlay(work_a, work_b, how = "intersection")
+
+Keep the winning blocks that also sit inside both commutes. That short list is where
+to look.
+
+.. code-block:: python
+
+   shortlist = gpd.sjoin(winners, both_commutes, predicate = "intersects")
+
+   ax = winners.plot(color = "#eef0f7", edgecolor = "white")
+   shortlist.plot(ax = ax, color = "#058040")

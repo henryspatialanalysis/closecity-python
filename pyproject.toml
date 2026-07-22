@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "closecity"
 version = "1.0.0"
-description = "Python client for the Close API (api.close.city) — travel times to points of interest for every US census block."
+description = "Python client for the Close API (api.close.city). Travel times to points of interest for every US census block."
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Close" }]
+authors = [{ name = "Nathaniel Henry", email = "nat@henryspatialanalysis.com" }]
 keywords = ["close", "travel-time", "isochrone", "census", "accessibility", "gis"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -19,7 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: GIS",
 ]
-dependencies = ["httpx>=0.27"]
+dependencies = ["httpx>=0.27", "geopandas>=0.14"]
 
 [project.urls]
 Homepage = "https://close.city"
@@ -30,9 +30,8 @@ API = "https://api.close.city"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
-# Spatial conversion (Reply.to_geopandas / to_geopandas). pygris is only needed
-# for the fetch=True TIGER-block convenience.
-geo = ["geopandas>=0.14", "shapely>=2", "pygris"]
+# Only needed to auto-download census-block boundaries (blocks map by default).
+tiger = ["pygris"]
 # Building the Sphinx documentation site.
 docs = ["sphinx>=7", "furo", "sphinx-copybutton"]
 
