@@ -471,6 +471,17 @@ class Client:
             _clean({"type": type, "q": q, "limit": limit}),
         ), geometry = True, output = output)
 
+    def place_boundary(self, geoid: str, *, output: str | None = None):
+        """The boundary polygon of a census place (city or town), by place GEOID.
+        Handy as a `boundary` layer for `close_map` when mapping a city's blocks
+        or POIs. Free (no API key). A one-row polygon GeoDataFrame (a `Reply`
+        under `output="raw"`)."""
+        reply = self._get(f"/v1/places/{geoid}/boundary")
+        if self._resolve_output(output) == "raw":
+            return reply
+        from . import spatial
+        return spatial.to_geopandas(reply)
+
     # -- isochrone ----------------------------------------------------------
 
     def isochrone(

@@ -41,6 +41,13 @@ def _isochrone_gdf(data: dict, gpd, shape, crs):
     return gpd.GeoDataFrame(records, geometry = geoms, crs = crs)
 
 
+def _feature_gdf(data: dict, gpd, shape, crs):
+    """A single GeoJSON Feature (e.g. a place boundary) as a one-row GeoDataFrame,
+    its ``properties`` folded into columns."""
+    props = dict(data.get("properties") or {})
+    return gpd.GeoDataFrame([props], geometry = [shape(data["geometry"])], crs = crs)
+
+
 def _points_gdf(rows: list[dict], gpd, Point, crs):
     geoms = [
         Point(r["lon"], r["lat"])
@@ -117,6 +124,11 @@ def to_geopandas(
 
     if tabular._is_isochrone(data):
         gdf = _isochrone_gdf(data, gpd, shape, crs)
+        tabular._stamp_attrs(gdf, data, meta)
+        return gdf
+
+    if isinstance(data, dict) and data.get("type") == "Feature" and data.get("geometry"):
+        gdf = _feature_gdf(data, gpd, shape, crs)
         tabular._stamp_attrs(gdf, data, meta)
         return gdf
 

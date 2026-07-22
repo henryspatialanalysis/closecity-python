@@ -37,3 +37,22 @@ def test_close_map_polygons_with_highlight():
     import plotly.graph_objects as go
     fig = close_map(_polys(), color = "#2f9e44", highlight = "near")
     assert isinstance(fig, go.Figure)
+
+
+def test_close_map_shades_by_fill():
+    import plotly.graph_objects as go
+    polys = _polys()
+    polys["score"] = [2, 5]
+    fig = close_map(polys, fill = "score", palette = "YlGnBu")
+    assert isinstance(fig, go.Figure)
+
+
+def test_close_map_boundary_and_background_layers():
+    import plotly.graph_objects as go
+    polys = _polys()
+    boundary = polys.geometry.union_all()   # a bare shapely geometry
+    fig = close_map(_points(), boundary = boundary,
+                    background = [polys], background_color = "#3b6fb0")
+    # one background fill + one boundary outline + the point layer
+    assert isinstance(fig, go.Figure)
+    assert len(fig.data) == 3

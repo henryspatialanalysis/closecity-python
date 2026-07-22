@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0
+
+- `Client.place_boundary(geoid)` — the boundary polygon of a census place, as a
+  one-row GeoDataFrame. Free (no API key); handy as a `boundary` layer for
+  `close_map`.
+- `close_map` gains layered context and smarter defaults: it auto-zooms to the
+  data, shows every attribute on hover, defaults to the ColorBrewer `YlGnBu`
+  scale (blue = most accessible), and takes a `boundary` outline and
+  semi-transparent `background` layers (e.g. a city boundary, commute isochrones,
+  or a walkshed under its POIs).
+
 ## 1.3.0
 
 - `Client.place_pois(geoid, ...)` — every point of interest within a census
