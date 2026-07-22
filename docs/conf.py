@@ -1,10 +1,11 @@
 """Sphinx configuration for the closecity Python documentation."""
 
 import importlib.metadata
+import os
 
 project = "closecity"
-author = "Close"
-copyright = "2026, Close"  # noqa: A001
+author = "Nathaniel Henry"
+copyright = "2026, Henry Spatial Analysis"  # noqa: A001
 try:
     release = importlib.metadata.version("closecity")
 except importlib.metadata.PackageNotFoundError:
@@ -16,9 +17,20 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "sphinx_copybutton",
+    "myst_nb",
 ]
 
-# httpx is the only runtime dep; mock it so the docs build without installing it.
+# The getting-started and tutorial pages are executable notebooks. Run them when a
+# key is present (on the docs site), and show the code without running it otherwise.
+nb_execution_mode = "auto" if os.environ.get("CLOSECITY_KEY") else "off"
+nb_execution_timeout = 180
+nb_execution_raise_on_error = True
+
+# When the notebooks are not executed (no key), myst-nb cannot infer a highlight
+# language for the code cells and warns once per cell. The cells still render with
+# python highlighting from the code-cell directive, so silence that one warning.
+suppress_warnings = ["myst-nb.lexer"]
+
 autodoc_mock_imports = ["httpx"]
 autodoc_member_order = "bysource"
 # The SDK docstrings are plain reStructuredText prose with single-backtick

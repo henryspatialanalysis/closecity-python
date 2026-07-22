@@ -23,7 +23,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[docs]"
+      # Set this repo secret to run the tutorial notebooks and render their output
+      # and maps. Without it, the notebooks are shown but not executed.
       - run: sphinx-build -b html docs docs/_build/html -W --keep-going
+        env:
+          CLOSECITY_KEY: ${{ secrets.CLOSECITY_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/_build/html

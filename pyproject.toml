@@ -32,8 +32,10 @@ API = "https://api.close.city"
 dev = ["pytest>=8", "ruff>=0.6"]
 # Only needed to auto-download census-block boundaries (blocks map by default).
 tiger = ["pygris"]
-# Building the Sphinx documentation site.
-docs = ["sphinx>=7", "furo", "sphinx-copybutton"]
+# Building the Sphinx documentation site. myst-nb runs the tutorial notebooks;
+# matplotlib draws the maps; pygris downloads block boundaries during execution.
+docs = ["sphinx>=7", "furo", "sphinx-copybutton", "myst-nb", "jupytext",
+        "matplotlib", "pygris"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

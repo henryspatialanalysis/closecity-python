@@ -1,11 +1,9 @@
 Tutorials
 =========
 
-Three worked analyses, each written to run comfortably inside a **5,000-token
-monthly allowance**. The pattern is the same throughout: discover ids from the
-**free** catalog, pull one **bounded** slice of data, do the analysis **locally**
-(free), and lean on **isochrones** (10 tokens per contour) for walksheds. Every
-tutorial ends with an estimated token cost.
+Three worked analyses. The pattern is the same throughout: read the category ids from
+the free catalog, pull one bounded slice of data, do the analysis locally, and map the
+result at each step.
 
 .. toctree::
    :maxdepth: 1
