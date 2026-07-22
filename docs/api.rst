@@ -19,8 +19,10 @@ Replies and pagination
 .. autoclass:: closecity.Paginator
    :members:
 
-Spatial conversion
-------------------
+Output conversion
+-----------------
+
+.. autofunction:: closecity.to_pandas
 
 .. autofunction:: closecity.to_geopandas
 

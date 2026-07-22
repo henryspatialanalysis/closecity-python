@@ -12,13 +12,16 @@ the box.
 Optional extras
 ---------------
 
-Block methods (``blocks_query``, ``place_blocks``, ``poi_catchment``) join
-census-block boundaries. To let them download the boundaries for you, add the
-``tiger`` extra:
+In the default spatial output mode, block methods (``blocks_query``,
+``place_blocks``, ``poi_catchment``) join census-block boundaries. To let them
+download the boundaries for you, add the ``tiger`` extra:
 
 .. code-block:: bash
 
    pip install "closecity[tiger]"
+
+You do not need it for ``output="tabular"``, which returns the same rows without
+geometry.
 
 Plotting a GeoDataFrame uses matplotlib:
 
@@ -29,8 +32,8 @@ Plotting a GeoDataFrame uses matplotlib:
 API keys
 --------
 
-The catalog and lookup routes are free and need no key. Every data route needs a key
-(``ck_live_`` or ``ck_test_``), created at
+The catalog and lookup routes are free and need no key. Every data route needs a
+key (``ck_live_``), created at
 `account.close.city <https://account.close.city>`_.
 
 .. code-block:: python

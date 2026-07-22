@@ -13,18 +13,19 @@ pip install closecity
 pip install "closecity[tiger]"   # to auto-download census-block boundaries
 ```
 
-This pulls in `httpx` and `geopandas`, so feature methods return GeoDataFrames out
-of the box.
+This pulls in `httpx`, `pandas`, and `geopandas`, so results come back as data
+frames out of the box: a GeoDataFrame where geometry applies, a plain DataFrame
+otherwise.
 
 ## A first call
 
-You make requests through a client. Feature results come back as GeoDataFrames, so
-you can map them right away.
+You make requests through a client. Routes with geometry come back as
+GeoDataFrames, so you can map them right away.
 
 ```python
 from closecity import Client
 
-# The key (ck_live_ or ck_test_) comes from https://account.close.city
+# The key (ck_live_) comes from https://account.close.city
 close = Client("ck_live_your_key")   # use your own key here
 
 # Grocery stores within a 1.5 km walk of a point, as points:
@@ -32,12 +33,12 @@ groceries = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500, type
 groceries.plot()
 ```
 
-Catalog and lookup routes are free and need no key:
+Catalog and lookup routes are free, need no key, and come back as data frames:
 
 ```python
 close = Client()
-close.modes().data["modes"]                    # walk, bike, transit
-close.places("Providence").data["places"][0]   # a city name to its GEOID and centre
+close.modes()                  # walk, bike, transit
+close.places("Providence")     # a city name to its GEOID and centre
 ```
 
 ## Words you will see
@@ -53,14 +54,20 @@ A few terms come up throughout the API:
   polygon.
 - **Catchment.** The reverse of an isochrone: every block that can reach a place.
 
-## Spatial output, on or off
+## Choosing an output
 
-Feature methods return GeoDataFrames by default. Block routes join census-block
-boundaries for you, using `pygris` (the `tiger` extra) to download them once. To work
-with the raw data instead, build the client with `spatial=False`:
+Set `output` on the client, or per call:
+
+- `output = "spatial"` (the default) returns a GeoDataFrame where geometry applies
+  and a DataFrame otherwise. Block routes join census-block boundaries with
+  `pygris` (the `tiger` extra), downloaded once and cached.
+- `output = "tabular"` returns a plain DataFrame for every route and never
+  downloads boundaries. Reach for it when you only want the numbers.
+- `output = "raw"` returns the underlying `Reply` / `Paginator`, with the parsed
+  body on `.data` and the token counts alongside.
 
 ```python
-close = Client("ck_live_your_key", spatial = False)   # use your own key here
+close = Client("ck_live_your_key", output = "raw")   # use your own key here
 for poi in close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500):
     print(poi["name"])
 ```

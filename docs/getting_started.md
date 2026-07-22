@@ -42,28 +42,31 @@ close = Client("ck_live_your_key")   # use your own key here
 ```
 
 The catalog and lookup routes are free, so `Client()` with no key works for those.
+They come back as data frames:
 
 ```{code-cell} python
-close.modes().data["modes"]
+close.modes()
 ```
 
 ## Look things up instead of guessing
 
 Read the numeric id for a category from the catalog, and turn a city name into a
-GEOID and a centre point.
+GEOID and a centre point. Both are plain data frames, so you filter and index them
+the usual way.
 
 ```{code-cell} python
-types = close.destination_types().data["destination_types"]
-ids = {t["label"]: t["dest_type_id"] for t in types}
-grocery = ids["grocery_stores"]
+types = close.destination_types()
+grocery = types.loc[types["label"] == "grocery_stores", "dest_type_id"].iloc[0]
 
-providence = close.places("Providence").data["places"][0]
+matches = close.places("Providence")
+providence = matches.iloc[0]
 providence["geoid"]
 ```
 
 ## Make a call and map it
 
-Feature methods return a GeoDataFrame, so you can map the result straight away.
+Routes with geometry return a GeoDataFrame, so you can map the result straight
+away.
 
 ```{code-cell} python
 groceries = close.pois_search(lat = providence["lat"], lon = providence["lon"],
@@ -71,15 +74,32 @@ groceries = close.pois_search(lat = providence["lat"], lon = providence["lon"],
 groceries.plot(color = "#202a5b")
 ```
 
-## Turn spatial output off
+## Choose an output
 
-Set the client's `spatial` flag to `False` to work with the raw data.
+Every route returns tabular data by default. The `output` setting controls the
+shape:
+
+- `"spatial"` (the default) returns a GeoDataFrame where geometry applies, and a
+  plain DataFrame otherwise.
+- `"tabular"` returns a plain DataFrame for every route and never downloads block
+  boundaries. Reach for it when you only want the numbers.
+- `"raw"` returns the underlying reply, with the parsed body on `.data` and the
+  token counts alongside.
+
+Set it on the client, or pass `output=` to a single call.
 
 ```{code-cell} python
-close.spatial = False
+close.output = "raw"
 summary = close.block_summary("440070008001068", mode = "walk")
 summary.results
 ```
+
+```{code-cell} python
+:tags: [remove-cell]
+close.output = "spatial"
+```
+
+In the frame modes, the token counts and other reply metadata ride on `df.attrs`.
 
 ## Errors
 

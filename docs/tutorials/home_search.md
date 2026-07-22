@@ -15,6 +15,8 @@ the blocks that are within a 10-minute walk of a grocery store, a 5-minute walk 
 restaurant, and a 20-minute walk of a frequent-transit stop. Then you narrow those
 blocks to the overlap of two commutes. The example city is Somerville, Massachusetts.
 
+*Running this tutorial uses about 2,900 tokens.*
+
 ```{code-cell} python
 :tags: [remove-cell]
 import os
@@ -35,13 +37,13 @@ close = Client("ck_live_your_key")   # use your own key here
 ```
 
 ```{code-cell} python
-types = close.destination_types().data["destination_types"]
-ids = {t["label"]: t["dest_type_id"] for t in types}
+types = close.destination_types()
+ids = dict(zip(types["label"], types["dest_type_id"]))
 grocery = ids["grocery_stores"]
 restaurant = ids["restaurants"]
 transit = ids["frequent_transit"]
 
-city = close.places("Somerville").data["places"][0]
+city = close.places("Somerville").iloc[0]
 ```
 
 ## See what is around

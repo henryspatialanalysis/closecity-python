@@ -17,6 +17,8 @@ where the gaps are. The idea follows
 [this analysis](https://nathenry.com/writing/2023-02-07-seattle-walkability.html),
 here applied to Richmond, Virginia.
 
+*Running this tutorial uses about 3,500 tokens.*
+
 ```{code-cell} python
 :tags: [remove-cell]
 import os
@@ -36,8 +38,8 @@ close = Client("ck_live_your_key")   # use your own key here
 ```
 
 ```{code-cell} python
-types = close.destination_types().data["destination_types"]
-ids = {t["label"]: t["dest_type_id"] for t in types}
+types = close.destination_types()
+ids = dict(zip(types["label"], types["dest_type_id"]))
 basket = {
     "grocery": ids["grocery_stores"],
     "library": ids["libraries"],
@@ -47,7 +49,7 @@ basket = {
     "cafe": ids["cafes"],
 }
 
-city = close.places("Richmond").data["places"][0]
+city = close.places("Richmond").iloc[0]
 ```
 
 ## Pull the blocks, with population
@@ -84,6 +86,20 @@ near_transit = set(blocks.loc[(blocks.dest_type_id == basket["transit"]) &
 one_per_block = one_per_block.assign(
     has_transit = one_per_block.geoid.isin(near_transit))
 one_per_block.plot(column = "has_transit", cmap = "Greens")
+```
+
+## The 15-minute-city score
+
+Count, for each block, how many of the six amenities are within a 15-minute walk.
+That score, from 0 to 6, is the map planners reach for. It reuses the data you
+already pulled, so it costs nothing more.
+
+```{code-cell} python
+covered = blocks[blocks.travel_time <= 15]
+score = covered.groupby("geoid")["dest_type_id"].nunique()
+one_per_block = one_per_block.assign(
+    score = one_per_block.geoid.map(score).fillna(0).astype(int))
+one_per_block.plot(column = "score", cmap = "viridis", legend = True)
 ```
 
 ## Who can reach all six
