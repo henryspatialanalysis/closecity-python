@@ -68,7 +68,7 @@ Which amenities to add, and where
 ---------------------------------
 
 A new facility of type *X* placed at a block covers every block within a 15-minute
-walk of it — exactly a ``direction="from"`` walk isochrone (1 token each). We greedily
+walk of it — exactly a ``direction="from"`` walk isochrone (10 tokens each). We greedily
 pick the five sites that turn the most *currently-uncovered* residents into
 fully-covered ones.
 
@@ -127,7 +127,8 @@ Token cost
 
 - ``places``: free. ``blocks_query`` disc (~700 blocks × 6 categories):
   **~4,000 tokens** (cache ``rows`` and reuse it for the geometry pull).
-- Up to 25 candidate isochrones: **~25 tokens**.
+- Up to 25 candidate isochrones (1 contour each, 10 tokens): **~250 tokens**.
 
-Just inside a 5,000-token month. Shrink ``radius_m`` (or the candidate count) to
-trade coverage for budget; widen it, across several months, for a whole city.
+Around 4,300 tokens — inside a 5,000-token month. Shrink ``radius_m`` (or the
+candidate count) to trade coverage for budget; widen it, across several months, for a
+whole city.

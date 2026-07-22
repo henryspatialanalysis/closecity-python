@@ -73,8 +73,8 @@ Block replies carry only GEOIDs, so join census-block boundaries. With
 Narrow to the overlap of two commutes
 -------------------------------------
 
-Say the two of you work near Kendall Square and downtown Boston. A **15-minute
-transit isochrone** from each workplace is one token per contour:
+Say the two of you work near Kendall Square and downtown Boston. A **20-minute
+transit isochrone** from each workplace is 10 tokens per contour:
 
 .. code-block:: python
 
@@ -97,7 +97,7 @@ Token cost
 - ``places`` + ``destination_types``: **free**.
 - ``place_blocks`` over Somerville (~800 blocks × 3 categories): **~2,400 tokens**
   (once; reuse the result for the map by caching ``rows``).
-- Two transit isochrones: **~2 tokens**.
+- Two transit isochrones (1 contour each): **~20 tokens**.
 
 Comfortably inside a 5,000-token month. For a larger city, replace
 ``place_blocks(geoid, …)`` with a bounded disc —

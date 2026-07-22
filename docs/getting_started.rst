@@ -46,7 +46,7 @@ Every metered reply carries its accounting:
    print(summary.tokens_charged, "charged;", summary.tokens_remaining, "left")
 
 Metering is **1 token per returned row** (minimum 1 per request); isochrones are the
-exception at **1 token per contour**. A ``304`` revalidation is free.
+exception at **10 tokens per contour**. A ``304`` revalidation is free.
 
 Pagination
 ----------
