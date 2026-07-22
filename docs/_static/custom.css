@@ -1,0 +1,14 @@
+/* Close type system, mirroring docs.close.city: Figtree for body, Inconsolata
+   for code. Loaded from Google Fonts (the same source the app and Starlight
+   docs use). Falls back to system fonts if offline. */
+@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inconsolata:wght@400;600&display=swap");
+
+:root {
+  --font-stack: "Figtree", system-ui, -apple-system, "Helvetica", sans-serif;
+  --font-stack--monospace: "Inconsolata", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* The Close wordmark accent: the terminal yellow dot on the logo. */
+.sidebar-brand-text {
+  font-weight: 700;
+}
