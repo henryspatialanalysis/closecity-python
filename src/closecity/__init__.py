@@ -19,15 +19,17 @@ from .errors import (
     ServiceUnavailableError,
     TokensExhaustedError,
 )
+from .map import close_map
 from .spatial import to_geopandas
 from .tabular import to_pandas
 
-__version__ = "1.1.0"
+__version__ = "1.3.0"
 
 __all__ = [
     "Client",
     "Paginator",
     "Reply",
+    "close_map",
     "to_geopandas",
     "to_pandas",
     "CloseError",

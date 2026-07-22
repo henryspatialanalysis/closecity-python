@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+- `Client.place_pois(geoid, ...)` — every point of interest within a census
+  place (city or town), by place GEOID. The place analog of `pois_search`; pass
+  `type` to get, e.g., all supermarkets in a city.
+- `close_map(gdf, ...)` — a one-line interactive map (CARTO Positron basemap,
+  hoverable points, or filled blocks that highlight the features meeting a
+  criterion) for the GeoDataFrames the client returns. Built on plotly (the
+  `closecity[maps]` extra); GDAL-free.
+- `places()` results now carry a `state` column (two-letter USPS abbreviation),
+  so same-named places are distinguishable.
+
 ## 1.2.0
 
 - `Client()` reads the `CLOSECITY_KEY` environment variable when no `api_key` is

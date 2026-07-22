@@ -457,6 +457,20 @@ class Client:
                     "include_population": include_population, "limit": limit}),
         ), geometry = True, output = output)
 
+    def place_pois(
+        self, geoid: str, *, type = None, q = None, limit = None,
+        output: str | None = None,
+    ):
+        """Every point of interest within a census place (city or town), by
+        place GEOID. The place analog of `pois_search`; pass `type` to get,
+        e.g., all supermarkets in a city. Spatial only — no travel times. A
+        GeoDataFrame of points (a plain DataFrame under `output="tabular"`, a
+        `Paginator` under `output="raw"`)."""
+        return self._deliver(Paginator(
+            self, "GET", f"/v1/places/{geoid}/pois",
+            _clean({"type": type, "q": q, "limit": limit}),
+        ), geometry = True, output = output)
+
     # -- isochrone ----------------------------------------------------------
 
     def isochrone(
