@@ -16,6 +16,9 @@ def close_map(
     *,
     color: str = "#e8590c",
     highlight: Any = None,
+    fill: Any = None,
+    palette: str = "Viridis",
+    reverse: bool = True,
     label: str = "name",
     size: int = 9,
     zoom: float = 10,
@@ -29,8 +32,10 @@ def close_map(
     ``highlight`` so the ones that matter stand out.
 
     ``highlight`` is either a boolean sequence (length ``len(gdf)``) or the name
-    of a boolean/0-1 column. ``label`` names the hover column. Returns a plotly
-    ``Figure``.
+    of a boolean/0-1 column. ``fill`` is the name of a numeric column to shade
+    features by, on a continuous scale with a legend (use it OR ``highlight``);
+    ``palette`` and ``reverse`` control that scale. ``label`` names the hover
+    column. Returns a plotly ``Figure``.
     """
     try:
         import plotly.graph_objects as go
@@ -44,6 +49,9 @@ def close_map(
     if highlight is not None:
         col = g[highlight] if isinstance(highlight, str) else highlight
         hl = [bool(v) for v in col]
+    fv = None
+    if fill is not None and isinstance(fill, str) and fill in g.columns:
+        fv = g[fill].astype(float).tolist()
 
     minx, miny, maxx, maxy = g.total_bounds
     center = {"lon": (minx + maxx) / 2, "lat": (miny + maxy) / 2}
@@ -51,13 +59,18 @@ def close_map(
     geom_type = g.geom_type.iloc[0] if len(g) else "Point"
 
     if "Point" in geom_type:
-        marker_color = color if hl is None else [
-            color if h else "#888888" for h in hl
-        ]
+        if fv is not None:
+            marker = dict(size = size, color = fv, colorscale = palette,
+                          reversescale = reverse, showscale = True,
+                          colorbar = dict(title = fill))
+        else:
+            marker_color = color if hl is None else [
+                color if h else "#888888" for h in hl
+            ]
+            marker = dict(size = size, color = marker_color)
         fig = go.Figure(go.Scattermapbox(
             lat = g.geometry.y.tolist(), lon = g.geometry.x.tolist(),
-            mode = "markers",
-            marker = dict(size = size, color = marker_color),
+            mode = "markers", marker = marker,
             text = hover, hoverinfo = "text" if hover else "none",
         ))
     else:
@@ -65,19 +78,24 @@ def close_map(
 
         g = g.reset_index(drop = True)
         g["_id"] = [str(i) for i in range(len(g))]
-        z = [1] * len(g) if hl is None else [int(h) for h in hl]
         geojson = json.loads(g[["_id", "geometry"]].to_json())
-        colorscale = (
-            [[0, color], [1, color]] if hl is None
-            else [[0, "#888888"], [1, color]]
-        )
-        fig = go.Figure(go.Choroplethmapbox(
-            geojson = geojson, locations = g["_id"].tolist(), z = z,
-            featureidkey = "properties._id", colorscale = colorscale,
-            showscale = False,
+        common = dict(
+            geojson = geojson, locations = g["_id"].tolist(),
+            featureidkey = "properties._id",
             marker = dict(opacity = opacity, line = dict(width = 0)),
             text = hover, hoverinfo = "text" if hover else "none",
-        ))
+        )
+        if fv is not None:
+            trace = go.Choroplethmapbox(
+                z = fv, colorscale = palette, reversescale = reverse,
+                showscale = True, colorbar = dict(title = fill), **common)
+        else:
+            z = [1] * len(g) if hl is None else [int(h) for h in hl]
+            colorscale = ([[0, color], [1, color]] if hl is None
+                          else [[0, "#888888"], [1, color]])
+            trace = go.Choroplethmapbox(
+                z = z, colorscale = colorscale, showscale = False, **common)
+        fig = go.Figure(trace)
 
     fig.update_layout(
         mapbox = dict(style = "carto-positron", zoom = zoom, center = center),
