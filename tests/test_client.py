@@ -29,9 +29,9 @@ def problem(status, slug, title, **extra):
                                      "X-Request-Id": "req-123"})
 
 
-def make_client(handler, api_key = "ck_test_abc"):
-    # spatial = False so methods return the raw Reply / Paginator we assert on.
-    return Client(api_key, base_url = "https://api.close.city", spatial = False,
+def make_client(handler, api_key = "ck_live_abc"):
+    # output = "raw" so methods return the raw Reply / Paginator we assert on.
+    return Client(api_key, base_url = "https://api.close.city", output = "raw",
                   transport = httpx.MockTransport(handler))
 
 
@@ -50,7 +50,7 @@ def test_bearer_auth_and_token_headers():
         )
 
     reply = make_client(handler).block_summary("410390020001010")
-    assert seen["auth"] == "Bearer ck_test_abc"
+    assert seen["auth"] == "Bearer ck_live_abc"
     assert reply.tokens_charged == 1
     assert reply.tokens_remaining == 4999
     assert reply.etag == '"abc"'

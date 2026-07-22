@@ -8,7 +8,6 @@
 """
 
 from .client import Client, Paginator, Reply
-from .spatial import to_geopandas
 from .errors import (
     AuthenticationError,
     BadRequestError,
@@ -20,14 +19,17 @@ from .errors import (
     ServiceUnavailableError,
     TokensExhaustedError,
 )
+from .spatial import to_geopandas
+from .tabular import to_pandas
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "Client",
     "Paginator",
     "Reply",
     "to_geopandas",
+    "to_pandas",
     "CloseError",
     "CloseAPIError",
     "BadRequestError",

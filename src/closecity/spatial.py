@@ -1,19 +1,21 @@
 """Turn Close API replies into GeoDataFrames.
 
-The client does this for you by default; this module is the machinery, and
-:func:`to_geopandas` is also usable by hand. Three response shapes are recognised
-automatically:
+The client does this for you in the default ``spatial`` output mode; this module
+is the machinery, and :func:`to_geopandas` is also usable by hand. It builds on
+the row-shaping in :mod:`closecity.tabular` and adds geometry. Three response
+shapes are recognised automatically:
 
 * **POI rows** (``lat`` / ``lon``) from :meth:`Client.pois_search`,
-  :meth:`block_pois`, :meth:`point_pois`, and :meth:`poi` become **point** geometry,
-  built offline.
+  :meth:`block_pois`, :meth:`point_pois`, :meth:`poi`, and :meth:`places` become
+  **point** geometry, built offline.
 * **Isochrone** replies with ``format=geojson`` from :meth:`Client.isochrone` become
   **polygon** geometry, built offline from the ``features`` envelope (a custom
   object, not a bare FeatureCollection).
 * **Block rows** (``geoid`` only) from :meth:`blocks_query`, :meth:`place_blocks`,
-  and :meth:`poi_catchment` become **polygons** by joining census-block boundaries.
-  Pass them as ``block_geometry`` (a GeoDataFrame keyed on ``geoid_col``), or let
-  ``fetch=True`` download them with ``pygris`` (the ``tiger`` extra).
+  :meth:`poi_catchment`, and isochrone ``format=blocks`` become **polygons** by
+  joining census-block boundaries. Pass them as ``block_geometry`` (a GeoDataFrame
+  keyed on ``geoid_col``), or let ``fetch=True`` download them with ``pygris``
+  (the ``tiger`` extra).
 """
 
 from __future__ import annotations
@@ -28,28 +30,6 @@ def _require_geopandas():
     import geopandas as gpd
     from shapely.geometry import Point, shape
     return gpd, Point, shape
-
-
-def _normalise(source: Any) -> tuple[Any, list[dict]]:
-    """Return ``(data, rows)`` for a Reply, Paginator, dict body, or row list."""
-    from .client import Paginator, Reply
-
-    if isinstance(source, Reply):
-        return source.data, list(source.results or [])
-    if isinstance(source, Paginator):
-        return None, list(source)
-    if isinstance(source, dict):
-        rows = source.get("results")
-        return source, list(rows) if isinstance(rows, list) else []
-    if isinstance(source, list):
-        return None, list(source)
-    raise TypeError(
-        f"Cannot convert {type(source).__name__}; pass a Reply, Paginator, or body."
-    )
-
-
-def _is_isochrone(data: Any) -> bool:
-    return isinstance(data, dict) and isinstance(data.get("features"), list)
 
 
 def _isochrone_gdf(data: dict, gpd, shape, crs):
@@ -78,7 +58,7 @@ def _fetch_blocks(geoids: list[str], geoid_col: str):
     except ImportError as exc:
         raise ImportError(
             "Mapping blocks needs pygris. Install: pip install 'closecity[tiger]', "
-            "or build the client with spatial=False."
+            "or use output='tabular' for the same rows without geometry."
         ) from exc
     pairs = sorted({(g[:2], g[2:5]) for g in geoids if g})
     frames = [pygris.blocks(state = s, county = c, year = 2020, cache = True)
@@ -127,30 +107,37 @@ def to_geopandas(
     ``source`` is a :class:`~closecity.Reply`, a :class:`~closecity.Paginator`
     (all pages are collected), or a raw response body. The geometry kind is
     detected from the payload; see the module docstring. ``block_geometry`` /
-    ``geoid_col`` / ``fetch`` only apply to block replies. Requires the ``geo``
-    extra.
+    ``geoid_col`` / ``fetch`` only apply to block replies. Metering and envelope
+    metadata land on ``.attrs``.
     """
+    from . import tabular
+
     gpd, Point, shape = _require_geopandas()
-    data, rows = _normalise(source)
+    data, meta = tabular._collect(source)
 
-    if _is_isochrone(data):
-        return _isochrone_gdf(data, gpd, shape, crs)
+    if tabular._is_isochrone(data):
+        gdf = _isochrone_gdf(data, gpd, shape, crs)
+        tabular._stamp_attrs(gdf, data, meta)
+        return gdf
 
+    rows, envelope = tabular._rows_and_envelope(data)
     first = rows[0] if rows else None
     if first is not None and "lat" in first and "lon" in first:
-        return _points_gdf(rows, gpd, Point, crs)
-    if first is not None and "geoid" in first:
-        return _blocks_gdf(rows, block_geometry, geoid_col, crs, fetch, gpd)
-
-    # Non-list bodies: a single POI dict, or a summary whose block is the geometry.
-    if isinstance(data, dict):
-        if data.get("lat") is not None and data.get("lon") is not None:
-            return _points_gdf([data], gpd, Point, crs)
-        block = data.get("block")
-        if isinstance(block, dict) and block.get("geoid"):
-            return _blocks_gdf([block], block_geometry, geoid_col, crs, fetch, gpd)
-
-    raise ValueError(
-        "This reply has no lat/lon, isochrone features, or block GEOIDs to build "
-        "geometry from."
-    )
+        gdf = _points_gdf(rows, gpd, Point, crs)
+    elif first is not None and "geoid" in first:
+        gdf = _blocks_gdf(rows, block_geometry, geoid_col, crs, fetch, gpd)
+    elif isinstance(data, dict) and data.get("lat") is not None \
+            and data.get("lon") is not None:
+        # A single POI detail body: the whole body is one point.
+        gdf = _points_gdf([data], gpd, Point, crs)
+    elif isinstance(data, dict) and isinstance(data.get("block"), dict) \
+            and data["block"].get("geoid"):
+        # A summary body whose origin block carries the geometry.
+        gdf = _blocks_gdf([data["block"]], block_geometry, geoid_col, crs, fetch, gpd)
+    else:
+        raise ValueError(
+            "This reply has no lat/lon, isochrone features, or block GEOIDs to build "
+            "geometry from."
+        )
+    tabular._stamp_attrs(gdf, envelope, meta)
+    return gdf

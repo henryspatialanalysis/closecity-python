@@ -1,8 +1,9 @@
 # closecity (Python SDK)
 
 Python client for the Close travel-time API (https://api.close.city). httpx-based,
-returns `geopandas` by default. Sphinx + Furo docs deploy to GitHub Pages; PyPI (via
-OIDC trusted publishing) is the eventual target. Public repo:
+returns tabular data by default (a `geopandas.GeoDataFrame` where geometry applies, a
+plain `pandas.DataFrame` otherwise). Sphinx + Furo docs deploy to GitHub Pages; PyPI
+(via OIDC trusted publishing) is the eventual target. Public repo:
 `henryspatialanalysis/closecity-python`. The R sibling is
 `henryspatialanalysis/closecity-r` -- keep the two SDKs behaviourally in step.
 
@@ -15,19 +16,31 @@ OIDC trusted publishing) is the eventual target. Public repo:
 - **Attribution:** copyright and funder is "Henry Spatial Analysis", never "Close".
   Author `Nathaniel Henry <nat@henryspatialanalysis.com>`.
 - **Code style:** line length 90, spaces around `=` even inside calls (Nat overrides
-  linters on this). `ruff` clean.
-- **API shape:** `Client` with one method per route; `Reply` / `Paginator`. Feature
-  methods convert to geopandas via `spatial.py` (`to_geopandas()` is also public).
-- **Spatial by default:** feature methods (POIs, catchments, areal blocks, isochrones)
-  return a `GeoDataFrame`. `Client(spatial=True)` is the default; `spatial=False` (on
-  the client or per call) returns the raw `Reply`. Catalog/places/summaries stay raw.
-- **Dependencies:** `geopandas>=0.14` is a hard dependency. `pygris` is the `[tiger]`
-  extra, used only to fetch block boundaries for the GEOID-only block routes
-  (`fetch=True`). Keep the runtime footprint minimal otherwise.
+  linters on this: `E251`/`E252` are ignored). `ruff check` clean with
+  `select = ["E","F","W","I","N","UP","B","C4","SIM"]`. **Never run `ruff format`** --
+  it strips the kwarg `=` spacing; lint only.
+- **API shape:** `Client` with one method per route; `Reply` / `Paginator`. Routes
+  with geometry convert via `spatial.py` (`to_geopandas()`), everything else via
+  `tabular.py` (`to_pandas()`); both are public. The `Client._deliver()` chokepoint
+  routes by the resolved output mode.
+- **Output modes (`output`, default `"spatial"`):** `"spatial"` returns a
+  `GeoDataFrame` where geometry applies (points, isochrone and block polygons) and a
+  plain `DataFrame` for catalog and summary routes; `"tabular"` returns a plain
+  `DataFrame` everywhere and never downloads block boundaries; `"raw"` returns the
+  `Reply` / `Paginator`. Set it on the client (`close.output = "raw"`) or per call
+  (`..., output = "tabular"`). `health`/`last_updated`/`isochrone_meta` are always raw;
+  a 304 is always raw. Metering + envelope ride on `df.attrs`. Keep the R SDK's
+  identical `output` vocabulary in step.
+- **Dependencies:** `pandas>=1.5` and `geopandas>=0.14` are hard dependencies. `pygris`
+  is the `[tiger]` extra, used only to fetch block boundaries for the GEOID-only block
+  routes in `spatial` mode. Keep the runtime footprint minimal otherwise.
 - **Tutorials (notebooks):** dead-simple and linear, **no helper functions**. Pull
   destination-type ids from the **free catalog** (`client.destination_types()`), never
-  hardcode numeric codes. Draw a **map at each stage**. **No token-cost talk.** After a
-  placeholder key, inline `# use your own key here`.
+  hardcode numeric codes. Draw a **map at each stage**. State the tutorial's **measured
+  token usage** in one italic line near the top ("Running this tutorial uses about N
+  tokens."); keep every tutorial **under 5,000 tokens** and do not publish a cheaper
+  variant on the same page. No other token-cost talk in the body except the dedicated
+  `docs/token_use.md` page. After a placeholder key, inline `# use your own key here`.
 - **Example cities:** Somerville MA (home search), Richmond VA (amenity basket),
   Providence RI (competitor walksheds). **No Seattle anywhere.**
 - **Docs execute live** at build time (see below), guarded on `CLOSECITY_KEY` so a

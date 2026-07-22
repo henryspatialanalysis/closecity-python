@@ -12,9 +12,9 @@ from shapely.geometry import Point, Polygon  # noqa: E402
 from closecity import Client, Reply, to_geopandas  # noqa: E402
 
 
-def make_client(handler, spatial = False):
-    return Client("ck_test_abc", base_url = "https://api.close.city",
-                  spatial = spatial, transport = httpx.MockTransport(handler))
+def make_client(handler, output = "raw"):
+    return Client("ck_live_abc", base_url = "https://api.close.city",
+                  output = output, transport = httpx.MockTransport(handler))
 
 
 def test_spatial_by_default_returns_a_geodataframe():
@@ -23,8 +23,8 @@ def test_spatial_by_default_returns_a_geodataframe():
             {"dest_id": 1, "name": "A", "lat": 44.0, "lon": -123.0}],
             "next_cursor": None})
 
-    # spatial defaults to True, so the method returns a GeoDataFrame directly.
-    gdf = make_client(handler, spatial = True).pois_search(
+    # output defaults to "spatial", so the method returns a GeoDataFrame directly.
+    gdf = make_client(handler, output = "spatial").pois_search(
         lat = 44.0, lon = -123.0, radius_m = 1000)
     assert isinstance(gdf, gpd.GeoDataFrame)
     assert list(gdf.geometry.geom_type) == ["Point"]
@@ -45,7 +45,7 @@ def test_poi_rows_become_points():
     assert len(gdf) == 2
     assert gdf.crs == "EPSG:4326"
     assert gdf.geometry.iloc[0].x == pytest.approx(-123.09)
-    assert set(["dest_id", "name"]).issubset(gdf.columns)
+    assert {"dest_id", "name"}.issubset(gdf.columns)
 
 
 def test_single_poi_detail_becomes_one_point():
@@ -61,7 +61,8 @@ def test_isochrone_features_become_polygons():
     square = [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]
     reply = Reply(
         data = {
-            "type": "FeatureCollection",  # note: real envelope is custom; features is what matters
+            # the real envelope is custom; only `features` matters here
+            "type": "FeatureCollection",
             "features": [
                 {"type": "Feature",
                  "geometry": {"type": "Polygon", "coordinates": square},
@@ -142,6 +143,7 @@ def test_paginator_to_geopandas_collects_all_pages():
 # -- module-level function + empty --------------------------------------------
 
 def test_module_function_and_empty_reply():
-    assert to_geopandas([{"lat": 1.0, "lon": 2.0}]).geometry.iloc[0].equals(Point(2.0, 1.0))
+    gdf = to_geopandas([{"lat": 1.0, "lon": 2.0}])
+    assert gdf.geometry.iloc[0].equals(Point(2.0, 1.0))
     with pytest.raises(ValueError):
         to_geopandas(Reply(data = {"results": []}, status = 200))
