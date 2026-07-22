@@ -60,14 +60,14 @@ def close_map(
 
     if "Point" in geom_type:
         if fv is not None:
-            marker = dict(size = size, color = fv, colorscale = palette,
-                          reversescale = reverse, showscale = True,
-                          colorbar = dict(title = fill))
+            marker = {"size": size, "color": fv, "colorscale": palette,
+                      "reversescale": reverse, "showscale": True,
+                      "colorbar": {"title": fill}}
         else:
             marker_color = color if hl is None else [
                 color if h else "#888888" for h in hl
             ]
-            marker = dict(size = size, color = marker_color)
+            marker = {"size": size, "color": marker_color}
         fig = go.Figure(go.Scattermapbox(
             lat = g.geometry.y.tolist(), lon = g.geometry.x.tolist(),
             mode = "markers", marker = marker,
@@ -79,16 +79,16 @@ def close_map(
         g = g.reset_index(drop = True)
         g["_id"] = [str(i) for i in range(len(g))]
         geojson = json.loads(g[["_id", "geometry"]].to_json())
-        common = dict(
-            geojson = geojson, locations = g["_id"].tolist(),
-            featureidkey = "properties._id",
-            marker = dict(opacity = opacity, line = dict(width = 0)),
-            text = hover, hoverinfo = "text" if hover else "none",
-        )
+        common = {
+            "geojson": geojson, "locations": g["_id"].tolist(),
+            "featureidkey": "properties._id",
+            "marker": {"opacity": opacity, "line": {"width": 0}},
+            "text": hover, "hoverinfo": "text" if hover else "none",
+        }
         if fv is not None:
             trace = go.Choroplethmapbox(
                 z = fv, colorscale = palette, reversescale = reverse,
-                showscale = True, colorbar = dict(title = fill), **common)
+                showscale = True, colorbar = {"title": fill}, **common)
         else:
             z = [1] * len(g) if hl is None else [int(h) for h in hl]
             colorscale = ([[0, color], [1, color]] if hl is None
@@ -98,7 +98,7 @@ def close_map(
         fig = go.Figure(trace)
 
     fig.update_layout(
-        mapbox = dict(style = "carto-positron", zoom = zoom, center = center),
-        margin = dict(l = 0, r = 0, t = 0, b = 0),
+        mapbox = {"style": "carto-positron", "zoom": zoom, "center": center},
+        margin = {"l": 0, "r": 0, "t": 0, "b": 0},
     )
     return fig
