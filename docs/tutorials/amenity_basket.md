@@ -11,7 +11,7 @@ kernelspec:
 # The amenity basket
 
 A city planner wants every resident to be able to walk to a basket of six everyday
-amenities: a grocery store, a library, a park, a frequent-transit stop, a restaurant,
+amenities: a supermarket, a library, a park, a frequent-transit stop, a restaurant,
 and a cafe. This tutorial measures how many residents already have that, and shows
 where the gaps are. The idea follows
 [this analysis](https://nathenry.com/writing/2023-02-07-seattle-walkability.html),
@@ -22,7 +22,7 @@ here applied to Richmond, Virginia.
 ```{code-cell} python
 :tags: [remove-cell]
 import os
-from closecity import Client
+from closecity import Client, close_map
 close = Client(os.environ.get("CLOSECITY_KEY"))
 ```
 
@@ -32,7 +32,7 @@ Read the six category ids from the free catalog, and turn the city name into a c
 point.
 
 ```python
-from closecity import Client
+from closecity import Client, close_map
 
 close = Client("ck_live_your_key")   # use your own key here
 ```
@@ -41,7 +41,7 @@ close = Client("ck_live_your_key")   # use your own key here
 types = close.destination_types()
 ids = dict(zip(types["label"], types["dest_type_id"]))
 basket = {
-    "grocery": ids["grocery_stores"],
+    "supermarket": ids["grocery_stores"],
     "library": ids["libraries"],
     "park": ids["parks"],
     "transit": ids["frequent_transit"],
@@ -54,15 +54,17 @@ city = close.places("Richmond").iloc[0]
 
 ## Pull the blocks, with population
 
-One call gets the walk time from every block near downtown to each of the six
-categories, along with each block's population.
+One call gets the walk time from every block to each of the six categories, plus
+each block's population. To keep this tutorial cheap we take the central blocks
+within a radius; `place_blocks(city["geoid"])` pulls **every** block in the city
+the same way (at a higher token cost).
 
 ```{code-cell} python
 blocks = close.blocks_query(
     center = {"lon": city["lon"], "lat": city["lat"]}, radius_m = 2500,
     mode = "walk", type = list(basket.values()), include_population = True)
 
-one_per_block = blocks.drop_duplicates("geoid")
+one_per_block = blocks.drop_duplicates("geoid").copy()
 total_pop = one_per_block["population"].sum()
 ```
 
@@ -78,14 +80,13 @@ for name, type_id in basket.items():
     print(f"{name:11} {100 * pop / total_pop:3.0f}%")
 ```
 
-Map one amenity to see the pattern.
+Map one amenity — every block shown, the covered ones highlighted.
 
 ```{code-cell} python
 near_transit = set(blocks.loc[(blocks.dest_type_id == basket["transit"]) &
                               (blocks.travel_time <= 15), "geoid"])
-one_per_block = one_per_block.assign(
-    has_transit = one_per_block.geoid.isin(near_transit))
-one_per_block.plot(column = "has_transit", cmap = "Greens")
+one_per_block["has_transit"] = one_per_block.geoid.isin(near_transit)
+close_map(one_per_block, highlight = "has_transit", color = "#058040")
 ```
 
 ## The 15-minute-city score
@@ -97,9 +98,8 @@ already pulled, so it costs nothing more.
 ```{code-cell} python
 covered = blocks[blocks.travel_time <= 15]
 score = covered.groupby("geoid")["dest_type_id"].nunique()
-one_per_block = one_per_block.assign(
-    score = one_per_block.geoid.map(score).fillna(0).astype(int))
-one_per_block.plot(column = "score", cmap = "viridis", legend = True)
+one_per_block["score"] = one_per_block.geoid.map(score).fillna(0).astype(int)
+close_map(one_per_block, fill = "score")
 ```
 
 ## Who can reach all six
@@ -117,9 +117,8 @@ basket_pop = one_per_block.loc[one_per_block.geoid.isin(covered_all),
                                "population"].sum()
 print(f"All six amenities: {100 * basket_pop / total_pop:.0f}% of residents")
 
-one_per_block = one_per_block.assign(
-    full_basket = one_per_block.geoid.isin(covered_all))
-one_per_block.plot(column = "full_basket", cmap = "Oranges")
+one_per_block["full_basket"] = one_per_block.geoid.isin(covered_all)
+close_map(one_per_block, highlight = "full_basket", color = "#f36e21")
 ```
 
 ## Which amenity to add first
@@ -137,10 +136,28 @@ for name, type_id in basket.items():
     print(f"{name:11} {pop:6.0f} residents would gain access")
 ```
 
-Map the uncovered blocks to see where new amenities would do the most good.
+## Site a new supermarket
+
+The counts above say *which* amenity to add; the next question is *where*. Take a
+candidate site near the city centre and ask how many residents would newly gain a
+supermarket within a 15-minute walk if one opened there. A `direction="to"`
+isochrone gives exactly the blocks that could reach the site on foot in 15 minutes.
 
 ```{code-cell} python
-one_per_block = one_per_block.assign(
-    uncovered = one_per_block.geoid.isin(uncovered))
-one_per_block.plot(column = "uncovered", cmap = "Blues")
+reachable = close.isochrone(lon = city["lon"], lat = city["lat"], mode = "walk",
+                            direction = "to", minutes = 15, format = "blocks")
+
+near_supermarket = set(blocks.loc[(blocks.dest_type_id == basket["supermarket"]) &
+                                  (blocks.travel_time <= 15), "geoid"])
+newly_served = set(reachable.geoid) - near_supermarket
+gain_pop = one_per_block.loc[one_per_block.geoid.isin(newly_served),
+                             "population"].sum()
+print(f"A supermarket here would newly serve {gain_pop:.0f} residents")
+```
+
+Map the whole city and highlight the blocks that would newly gain access.
+
+```{code-cell} python
+one_per_block["newly_served"] = one_per_block.geoid.isin(newly_served)
+close_map(one_per_block, highlight = "newly_served", color = "#e8590c")
 ```

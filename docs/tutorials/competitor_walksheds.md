@@ -12,24 +12,24 @@ kernelspec:
 
 A coffee shop wants to know which competitors draw from the same neighbourhood it
 does. Its **walkshed** is every residential block that can walk to it. This tutorial
-finds nearby competitors and measures how much of that walkshed they share. The
-example city is Providence, Rhode Island.
+finds the competitors and measures how much of that walkshed they share. The example
+city is Providence, Rhode Island.
 
-*Running this tutorial uses about 900 tokens.*
+*Running this tutorial uses about 700 tokens.*
 
 ```{code-cell} python
 :tags: [remove-cell]
 import os
-from closecity import Client
+from closecity import Client, close_map
 close = Client(os.environ.get("CLOSECITY_KEY"))
 ```
 
 ## Set up
 
-Read the cafe category id from the free catalog and find the city centre.
+Read the cafe category id from the free catalog and find the city.
 
 ```python
-from closecity import Client
+from closecity import Client, close_map
 
 close = Client("ck_live_your_key")   # use your own key here
 ```
@@ -44,16 +44,17 @@ city = close.places("Providence").iloc[0]
 
 ## Find the shops
 
-Search for cafes near downtown. The result is a GeoDataFrame of points, so plot them
-and pick one shop as the subject.
+`place_pois` returns every cafe within the city's boundary — no radius to guess.
+Pick one as the subject and draw it in orange; the rest are the field.
 
 ```{code-cell} python
-cafes = close.pois_search(lat = city["lat"], lon = city["lon"],
-                          radius_m = 1200, type = cafe)
-cafes.plot(color = "#202a5b")
-
+cafes = close.place_pois(city["geoid"], type = cafe)
 ours = cafes.iloc[0]
 ours["name"]
+
+cafes["is_ours"] = cafes["dest_id"] == ours["dest_id"]
+close_map(cafes, color = ["#f36e21" if o else "#202a5b" for o in cafes["is_ours"]],
+          label = "name")
 ```
 
 ## Our walkshed
@@ -65,9 +66,7 @@ as polygons, with the block boundaries downloaded by `pygris`.
 our_shed = close.poi_catchment(int(ours["dest_id"]), mode = "walk",
                                max_minutes = 10)
 our_geoids = set(our_shed.geoid)
-
-ax = our_shed.plot(color = "#eef0f7", edgecolor = "#c6cbe0")
-cafes.iloc[[0]].plot(ax = ax, color = "#f36e21", markersize = 60)
+close_map(our_shed, color = "#74b9ff")
 ```
 
 ## Who else serves it
@@ -88,13 +87,14 @@ for i in range(1, 6):
 
 ## Map the contested ground
 
-Draw our walkshed, then every cafe on top, with our shop highlighted.
+Draw every cafe, with our shop in orange and the field in navy. The clusters of
+competitors sitting inside our walkshed are the ones competing for the same walk-in
+traffic.
 
 ```{code-cell} python
-ax = our_shed.plot(color = "#eef0f7", edgecolor = "#c6cbe0")
-cafes.plot(ax = ax, color = "#202a5b")
-cafes.iloc[[0]].plot(ax = ax, color = "#f36e21", markersize = 60)
+close_map(cafes, color = ["#f36e21" if o else "#202a5b" for o in cafes["is_ours"]],
+          label = "name")
 ```
 
-The same recipe works over a wider area: search a bounding box instead of a radius,
-and loop over more shops.
+The same recipe scales up: loop `poi_catchment` over more competitors, or compare
+whole cities by pulling each one's cafes with `place_pois`.

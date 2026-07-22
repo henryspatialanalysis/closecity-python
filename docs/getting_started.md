@@ -15,11 +15,11 @@ A short tour of the client. The tutorials go further.
 ```{code-cell} python
 :tags: [remove-cell]
 import os
-from closecity import Client
+from closecity import Client, close_map
 close = Client(os.environ.get("CLOSECITY_KEY"))
 ```
 
-## Words you will see
+## Key terms
 
 A few terms come up throughout:
 
@@ -28,15 +28,23 @@ A few terms come up throughout:
 - **Destination type.** A category of place, such as grocery stores or libraries.
   Every type has a numeric id.
 - **Mode.** How someone travels: walk, bike, or transit.
-- **Isochrone.** The area reachable from a point within a time limit, as a polygon.
-- **Catchment.** The reverse: every block that can reach a given place.
+- **Isochrone** or **catchment.** Two views of the same reachability: the area
+  reachable from a point within a time limit (an isochrone), or every block that
+  can reach a given place (a catchment).
+
+## Travel times
+
+Times to nearby places are **capped at 30 minutes** for each mode, and recorded in
+**whole minutes**. A missing time means the place is not reachable within the cap,
+not that it is zero. Isochrones are the exception: they are available for any
+budget up to an hour.
 
 ## Build a client
 
 You make every request through a client.
 
 ```python
-from closecity import Client
+from closecity import Client, close_map
 
 close = Client("ck_live_your_key")   # use your own key here
 ```
@@ -52,51 +60,47 @@ close.modes()
 
 Read the numeric id for a category from the catalog, and turn a city name into a
 GEOID and a centre point. Both are plain data frames, so you filter and index them
-the usual way.
+the usual way. The catalog's `name` column is the readable label ("Grocery
+stores"); the underscored `label` is the internal key you match on. A place lookup
+carries a `state`, so you can tell Providence, RI from the one in Utah.
 
 ```{code-cell} python
 types = close.destination_types()
-grocery = types.loc[types["label"] == "grocery_stores", "dest_type_id"].iloc[0]
+supermarket_dest_type = types.loc[types["label"] == "grocery_stores",
+                                  "dest_type_id"].iloc[0]
 
-matches = close.places("Providence")
-providence = matches.iloc[0]
-providence["geoid"]
+providence_ri = close.places("Providence").iloc[0]
+providence_ri[["name", "state", "geoid"]]
 ```
 
 ## Make a call and map it
 
-Routes with geometry return a GeoDataFrame, so you can map the result straight
-away.
+Routes with geometry return a GeoDataFrame. `close_map()` draws it on an
+interactive basemap in one line — bright, hoverable points here.
 
 ```{code-cell} python
-groceries = close.pois_search(lat = providence["lat"], lon = providence["lon"],
-                              radius_m = 1500, type = grocery)
-groceries.plot(color = "#202a5b")
+supermarkets = close.place_pois(providence_ri["geoid"], type = supermarket_dest_type)
+close_map(supermarkets, color = "#e8590c")
 ```
 
 ## Choose an output
 
-Every route returns tabular data by default. The `output` setting controls the
-shape:
+Every route returns tabular data by default: a GeoDataFrame where geometry applies,
+a plain DataFrame otherwise. The `output` setting changes the shape — `"tabular"`
+never downloads boundaries, and `"raw"` returns the underlying reply with its
+metering and cursor fields. Set it on the client, or pass `output=` to one call.
 
-- `"spatial"` (the default) returns a GeoDataFrame where geometry applies, and a
-  plain DataFrame otherwise.
-- `"tabular"` returns a plain DataFrame for every route and never downloads block
-  boundaries. Reach for it when you only want the numbers.
-- `"raw"` returns the underlying reply, with the parsed body on `.data` and the
-  token counts alongside.
-
-Set it on the client, or pass `output=` to a single call.
+The same block summary as a DataFrame (the default):
 
 ```{code-cell} python
-close.output = "raw"
-summary = close.block_summary("440070008001068", mode = "walk")
-summary.results
+close.block_summary("440070008001068", mode = "walk")
 ```
 
+...and as the raw reply, whose `results` you can index yourself:
+
 ```{code-cell} python
-:tags: [remove-cell]
-close.output = "spatial"
+raw = close.block_summary("440070008001068", mode = "walk", output = "raw")
+raw.results[:3]
 ```
 
 In the frame modes, the token counts and other reply metadata ride on `df.attrs`.

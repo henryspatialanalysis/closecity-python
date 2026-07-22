@@ -23,16 +23,16 @@ You make requests through a client. Routes with geometry come back as
 GeoDataFrames, so you can map them right away.
 
 ```python
-from closecity import Client
+from closecity import Client, close_map
 
 # The key (ck_live_) comes from https://account.close.city (5,000 free tokens
 # on signup, no card). You can also set the CLOSECITY_KEY environment variable
 # and call Client() with no argument.
 close = Client("ck_live_your_key")   # use your own key here
 
-# Grocery stores within a 1.5 km walk of a point, as points:
-groceries = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500, type = 30)
-groceries.plot()
+# Supermarkets within a 1.5 km walk of a point (type 30 is grocery stores):
+supermarkets = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500, type = 30)
+close_map(supermarkets, color = "#e8590c")   # interactive map, bright hoverable points
 ```
 
 Catalog and lookup routes are free, need no key, and come back as data frames:
@@ -43,7 +43,7 @@ close.modes()                  # walk, bike, transit
 close.places("Providence")     # a city name to its GEOID and centre
 ```
 
-## Words you will see
+## Key terms
 
 A few terms come up throughout the API:
 
@@ -52,9 +52,9 @@ A few terms come up throughout the API:
 - **Destination type.** A category of place, such as grocery stores or libraries.
   Each type has a numeric id. Look them up with `close.destination_types()`.
 - **Mode.** How someone travels: walk, bike, or transit.
-- **Isochrone.** The area you can reach from a point within a time limit, as a
-  polygon.
-- **Catchment.** The reverse of an isochrone: every block that can reach a place.
+- **Isochrone** or **catchment.** Two views of the same reachability: the area you
+  can reach from a point within a time limit (an isochrone), or every block that
+  can reach a place (a catchment).
 
 ## Choosing an output
 

@@ -21,9 +21,9 @@ The API is metered in tokens: one per returned row, minimum one per request, and
 10 per isochrone contour. Tokens are rows, so spending well is mostly about not
 asking for rows you will throw away.
 
-## Free things
+## Free queries
 
-The whole catalog is free and keyless: `modes()`, `destination_types()`,
+Metadata queries are free and keyless: `modes()`, `destination_types()`,
 `vintage()`, `places()`, `isochrone_meta()`, `last_updated()`, and `health()`. Do
 your lookups before you spend a token.
 
@@ -44,8 +44,11 @@ again.not_modified   # True, and nothing was charged
 The rows a query returns multiply out as modes times types times blocks:
 
 - **Pass `mode`.** Omitting it returns all three modes, so three times the rows.
-- **Request leaf types, not parents.** A parent type expands to its leaves, so
-  `type = grocery` (one leaf) is a quarter of the rows of the `parks` parent.
+- **Filter by `type`.** The POI and areal routes take a destination `type`, so ask
+  the server for only the category you want rather than fetching everything and
+  filtering in pandas. Look the id up in `destination_types()`.
+- **Request leaf types, not parents.** A parent type expands to its leaves, so a
+  single leaf id is a fraction of the rows of a parent like `parks`.
 - **Shrink the area.** Cost grows with the square of `radius_m`, so halving the
   radius is roughly a quarter of the tokens.
 - **Use `max_minutes`.** It drops rows you would filter out anyway.
@@ -64,11 +67,18 @@ shed = close.isochrone(block = "440070008001068", minutes = 30, mode = "walk",
 ## Watch what you spend
 
 Every metered reply carries the token counts. In the frame output modes they ride
-on `df.attrs`; in `output="raw"` they are on the reply.
+on `df.attrs`; in `output="raw"` they are on the reply. Here the `type` filter asks
+only for supermarkets, so you pay for a handful of rows, not every POI in the
+radius:
 
 ```{code-cell} python
-groceries = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1200)
-groceries.attrs["tokens_charged"], groceries.attrs["tokens_remaining"]
+types = close.destination_types()
+supermarket_dest_type = types.loc[types["label"] == "grocery_stores",
+                                  "dest_type_id"].iloc[0]
+
+supermarkets = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1200,
+                                 type = supermarket_dest_type)
+supermarkets.attrs["tokens_charged"], supermarkets.attrs["tokens_remaining"]
 ```
 
 When you only want the numbers, `output="tabular"` skips the block-boundary
