@@ -63,11 +63,13 @@ stops.plot(ax = ax, color = "#f36e21", marker = "^")
 
 ## Find the blocks that qualify
 
-Pull the per-block walk times for the whole city. The result is a GeoDataFrame with
-one row per (block, category); the boundaries come from `pygris`, downloaded once.
+Pull the per-block walk times for the blocks around the city centre. The result is a
+GeoDataFrame with one row per (block, category); the boundaries come from `pygris`,
+downloaded once.
 
 ```{code-cell} python
-blocks = close.place_blocks(city["geoid"], mode = "walk",
+blocks = close.blocks_query(center = {"lon": city["lon"], "lat": city["lat"]},
+                            radius_m = 3000, mode = "walk",
                             type = [grocery, restaurant, transit])
 ```
 

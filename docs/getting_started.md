@@ -77,7 +77,7 @@ Set the client's `spatial` flag to `False` to work with the raw data.
 
 ```{code-cell} python
 close.spatial = False
-summary = close.block_summary("440070036001010", mode = "walk")
+summary = close.block_summary("440070008001068", mode = "walk")
 summary.results
 ```
 

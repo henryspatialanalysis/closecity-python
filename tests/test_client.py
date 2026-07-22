@@ -147,13 +147,16 @@ def test_blocks_query_is_post_with_cursor_in_body():
 
     pg = make_client(handler).blocks_query(
         center = {"lon": -123.0, "lat": 44.0}, radius_m = 1000,
-        include_population = True,
+        mode = "walk", type = 30, include_population = True,
     )
     records = list(pg)
     assert methods == ["POST", "POST"]
     assert len(records) == 2
     assert bodies[0]["center"] == {"lon": -123.0, "lat": 44.0}
     assert bodies[0]["include_population"] is True
+    # Scalar mode/type are wrapped in lists (the POST body needs arrays).
+    assert bodies[0]["mode"] == ["walk"]
+    assert bodies[0]["type"] == [30]
     assert bodies[1]["cursor"] == "C2"  # cursor threaded through the body
 
 

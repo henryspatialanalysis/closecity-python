@@ -25,6 +25,14 @@ def _clean(params: dict[str, Any] | None) -> dict[str, Any]:
     return {k: v for k, v in (params or {}).items() if v is not None}
 
 
+def _as_list(value: Any) -> Any:
+    """Wrap a scalar in a list, for POST-body fields the API requires as arrays.
+    ``None`` and existing lists/tuples pass through unchanged."""
+    if value is None or isinstance(value, (list, tuple)):
+        return value
+    return [value]
+
+
 def _int(value: str | None) -> int | None:
     return int(value) if value is not None else None
 
@@ -341,8 +349,8 @@ class Client:
         `spatial=False`."""
         body = _clean({
             "polygon": polygon, "center": center, "radius_m": radius_m,
-            "type": type, "mode": mode, "include_population": include_population,
-            "limit": limit,
+            "type": _as_list(type), "mode": _as_list(mode),
+            "include_population": include_population, "limit": limit,
         })
         return self._spatial(Paginator(self, "POST", "/v1/blocks/query",
                                        _json = body, _cursor_in = "json"))

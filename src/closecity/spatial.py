@@ -103,9 +103,12 @@ def _blocks_gdf(rows, block_geometry, geoid_col, crs, fetch, gpd):
                 "blocks with pygris."
             )
     geo = block_geometry.rename(columns = {geoid_col: "geoid"})
+    # TIGER blocks arrive in NAD83 (EPSG:4269); reproject so they match the POI and
+    # isochrone geometry (EPSG:4326) and can be combined without a CRS mismatch.
+    if crs is not None and geo.crs is not None and str(geo.crs) != str(crs):
+        geo = geo.to_crs(crs)
     merged = df.merge(geo[["geoid", "geometry"]], on = "geoid", how = "left")
-    out_crs = getattr(block_geometry, "crs", None) or crs
-    return gpd.GeoDataFrame(merged, geometry = "geometry", crs = out_crs)
+    return gpd.GeoDataFrame(merged, geometry = "geometry", crs = crs)
 
 
 def to_geopandas(
