@@ -23,6 +23,10 @@ here applied to Richmond, Virginia.
 :tags: [remove-cell]
 import os
 from closecity import Client, close_map
+import plotly.io as pio
+
+# Emit self-contained HTML for each map so myst-nb renders it in the docs build.
+pio.renderers.default = "notebook_connected"
 close = Client(os.environ.get("CLOSECITY_KEY"))
 ```
 

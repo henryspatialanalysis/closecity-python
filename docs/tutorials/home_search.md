@@ -24,6 +24,10 @@ import os
 import pandas as pd
 import geopandas as gpd
 from closecity import Client, close_map
+import plotly.io as pio
+
+# Emit self-contained HTML for each map so myst-nb renders it in the docs build.
+pio.renderers.default = "notebook_connected"
 close = Client(os.environ.get("CLOSECITY_KEY"))
 ```
 
@@ -122,6 +126,10 @@ work_b = close.isochrone(lon = -71.0589, lat = 42.3555, mode = "transit",
                          direction = "from", minutes = 20)
 
 close_map(work_a, color = "#058040")
+```
+
+```{code-cell} python
+close_map(work_b, color = "#f36e21")
 ```
 
 Keep the qualifying blocks that also sit inside both commutes. That short list is
