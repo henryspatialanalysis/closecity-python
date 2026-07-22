@@ -16,7 +16,7 @@ walk of a supermarket, a 5-minute walk of a restaurant, and a 20-minute walk of 
 frequent-transit stop. Then, we narrow those blocks to the overlap of two commutes.
 The example city is Somerville, Massachusetts.
 
-*Running this tutorial uses about 2,900 tokens.*
+*Running this tutorial uses about 2,600 tokens.*
 
 ```{code-cell} python
 :tags: [remove-cell]
@@ -33,112 +33,117 @@ close = Client(os.environ.get("CLOSECITY_KEY"))
 
 ## Set up
 
-Build a client, then read the pieces you need from the free catalog.
+Build a client, then read the pieces you need from the free catalog instead of
+memorising codes.
 
 ```python
 from closecity import Client, close_map
-import pandas as pd
-import geopandas as gpd
 
 close = Client("ck_live_your_key")   # use your own key here
 ```
 
 ```{code-cell} python
-types = close.destination_types()
-ids = dict(zip(types["label"], types["dest_type_id"]))
+# The catalog lists every category with its numeric id. Pull the ids you need.
+amenity_types = close.destination_types()
+ids = dict(zip(amenity_types["label"], amenity_types["dest_type_id"]))
+
 supermarket_dest_id = ids["grocery_stores"]
 restaurant_dest_id = ids["restaurants"]
 freq_transit_stop_dest_id = ids["frequent_transit"]
 
-city = close.places("Somerville").iloc[0]
+# Turn the city name into a GEOID and pull its boundary for context.
+city = close.places(q = "Somerville").iloc[0]
+city_boundary = close.place_boundary(geoid = city["geoid"])
 ```
 
 ## See what is around
 
-Look at the raw ingredients first. Each search returns points; give each category
-a colour and map them together.
+Look at the raw ingredients first: every supermarket, restaurant, and frequent-transit
+stop **within Somerville**, from `place_pois` — the city boundary, not a guessed
+radius, is the edge. Give each category a colour and map them together.
 
 ```{code-cell} python
-supermarkets = close.pois_search(lat = city["lat"], lon = city["lon"],
-                                 radius_m = 3000, type = supermarket_dest_id)
-restaurants = close.pois_search(lat = city["lat"], lon = city["lon"],
-                                radius_m = 3000, type = restaurant_dest_id)
-stops = close.pois_search(lat = city["lat"], lon = city["lon"],
-                          radius_m = 3000, type = freq_transit_stop_dest_id)
+supermarkets = close.place_pois(geoid = city["geoid"], type = supermarket_dest_id)
+restaurants = close.place_pois(geoid = city["geoid"], type = restaurant_dest_id)
+stops = close.place_pois(geoid = city["geoid"], type = freq_transit_stop_dest_id)
 
 supermarkets["kind"] = "Supermarket"
 restaurants["kind"] = "Restaurant"
 stops["kind"] = "Transit stop"
-around = pd.concat([supermarkets[["kind", "geometry"]],
-                    restaurants[["kind", "geometry"]],
+around = pd.concat([supermarkets[["kind", "geometry"]], restaurants[["kind", "geometry"]],
                     stops[["kind", "geometry"]]])
 
-palette = {"Supermarket": "#058040", "Restaurant": "#c6cbe0",
-           "Transit stop": "#f36e21"}
-close_map(around, color = [palette[k] for k in around["kind"]], label = "kind")
+palette = {"Supermarket": "#058040", "Restaurant": "#c6cbe0", "Transit stop": "#f36e21"}
+close_map(around, color = [palette[k] for k in around["kind"]], label = "kind",
+          boundary = city_boundary)
 ```
 
 ## Find the blocks that qualify
 
 Somerville is a census place, so one call by place GEOID pulls the per-block walk
-times for every block in the city — a GeoDataFrame with one row per (block,
-category); the boundaries come from `pygris`, downloaded once. (To search an
-arbitrary area instead, use `blocks_query` with a centre and radius or a polygon —
-we do that with a radius in the other tutorials only to keep their token cost low;
-a place GEOID pulls the whole city.)
+times for every block in the city — `place_blocks` reads every page and returns one
+row per (block, category); block boundaries come from `pygris`, downloaded once and
+cached. (To search an arbitrary area instead, use `blocks_query` with a centre and
+radius or a polygon — we do that with a radius in the other tutorials only to keep
+their token cost low; a place GEOID pulls the whole city.)
 
 ```{code-cell} python
-blocks = close.place_blocks(city["geoid"], mode = "walk",
+blocks = close.place_blocks(geoid = city["geoid"], mode = "walk",
                             type = [supermarket_dest_id, restaurant_dest_id,
                                     freq_transit_stop_dest_id])
 ```
 
-Take the blocks that pass each rule, then keep the blocks that pass all three.
+Reshape to one row per block, with a walk-time column for each amenity, so a block
+carries all three times at once (and the hover on the map shows them). Then flag the
+blocks that pass every rule.
 
 ```{code-cell} python
-near_supermarket = set(blocks.loc[(blocks.dest_type_id == supermarket_dest_id) &
-                                  (blocks.travel_time <= 10), "geoid"])
-near_restaurant = set(blocks.loc[(blocks.dest_type_id == restaurant_dest_id) &
-                                 (blocks.travel_time <= 5), "geoid"])
-near_transit = set(blocks.loc[(blocks.dest_type_id == freq_transit_stop_dest_id) &
-                              (blocks.travel_time <= 20), "geoid"])
+city_blocks = blocks.drop_duplicates("geoid")[["geoid", "geometry"]].reset_index(drop = True)
+def time_to(type_id):
+    sub = blocks[blocks["dest_type_id"] == type_id].set_index("geoid")["travel_time"]
+    return city_blocks["geoid"].map(sub)
+city_blocks["supermarket_min"] = time_to(supermarket_dest_id)
+city_blocks["restaurant_min"] = time_to(restaurant_dest_id)
+city_blocks["transit_min"] = time_to(freq_transit_stop_dest_id)
 
-candidates = near_supermarket & near_restaurant & near_transit
+city_blocks["qualifies"] = ((city_blocks["supermarket_min"] <= 10) &
+                            (city_blocks["restaurant_min"] <= 5) &
+                            (city_blocks["transit_min"] <= 20))
 ```
 
-Show every block in the city, and highlight the ones that qualify.
+Show every block in the city, highlight the ones that qualify, and hover any block to
+read its walk time to each amenity.
 
 ```{code-cell} python
-city_blocks = blocks.drop_duplicates("geoid").copy()
-city_blocks["qualifies"] = city_blocks["geoid"].isin(candidates)
-close_map(city_blocks, highlight = "qualifies", color = "#f36e21")
+close_map(city_blocks, highlight = "qualifies", color = "#f36e21", boundary = city_boundary)
 ```
 
 ## Narrow to a shared commute
 
 Suppose two of you work in different places. A transit isochrone from each workplace
-shows how far each commute reaches.
+shows how far each commute reaches; drawn together, half-transparent, you can see both
+at once.
 
 ```{code-cell} python
 work_a = close.isochrone(lon = -71.0865, lat = 42.3625, mode = "transit",
-                         direction = "from", minutes = 20)
+                         direction = "from", minutes = 20, format = "geojson")
 work_b = close.isochrone(lon = -71.0589, lat = 42.3555, mode = "transit",
-                         direction = "from", minutes = 20)
+                         direction = "from", minutes = 20, format = "geojson")
 
-close_map(work_a, color = "#058040")
+close_map(work_a, color = "#058040", opacity = 0.5, background = work_b,
+          background_color = "#f36e21", background_opacity = 0.5)
 ```
 
-```{code-cell} python
-close_map(work_b, color = "#f36e21")
-```
-
-Keep the qualifying blocks that also sit inside both commutes. That short list is
-where to look.
+Keep the qualifying blocks that also sit inside both commutes. The final map shows
+those winning blocks, with the shortlist — inside both commutes — highlighted, over
+the two commute walksheds.
 
 ```{code-cell} python
-both_commutes = gpd.overlay(work_a, work_b, how = "intersection")
+both_commutes = work_a.union_all().intersection(work_b.union_all())
 winners = city_blocks[city_blocks["qualifies"]].copy()
-matched = gpd.sjoin(winners, both_commutes, predicate = "intersects")
-winners["shortlist"] = winners.index.isin(matched.index)
-close_map(winners, highlight = "shortlist", color = "#058040")
+winners["shortlist"] = winners.intersects(both_commutes)
+
+close_map(winners, highlight = "shortlist", color = "#1f78b4", boundary = city_boundary,
+          background = [work_a, work_b], background_color = ["#058040", "#f36e21"],
+          background_opacity = 0.5)
 ```

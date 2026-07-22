@@ -33,8 +33,8 @@ when you want the etag:
 
 ```python
 close.output = "raw"
-first = close.block_summary("440070008001068", mode = "walk")
-again = close.block_summary("440070008001068", mode = "walk",
+first = close.block_summary(geoid = "440070008001068", mode = "walk")
+again = close.block_summary(geoid = "440070008001068", mode = "walk",
                             if_none_match = first.etag)
 again.not_modified   # True, and nothing was charged
 ```

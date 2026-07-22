@@ -52,16 +52,15 @@ A few terms come up throughout the API:
 - **Destination type.** A category of place, such as grocery stores or libraries.
   Each type has a numeric id. Look them up with `close.destination_types()`.
 - **Mode.** How someone travels: walk, bike, or transit.
-- **Isochrone** or **catchment.** Two views of the same reachability: the area you
-  can reach from a point within a time limit (an isochrone), or every block that
-  can reach a place (a catchment).
+- **Isochrone** or **catchment**: the area you can reach starting from a point
+  within a time limit, by a selected travel mode.
 
 ## Choosing an output
 
 Set `output` on the client, or per call:
 
-- `output = "spatial"` (the default) returns a GeoDataFrame where geometry applies
-  and a DataFrame otherwise. Block routes join census-block boundaries with
+- `output = "spatial"` (the default) returns a GeoDataFrame for inherently spatial
+  data and a DataFrame otherwise. Block routes join census-block boundaries with
   `pygris` (the `tiger` extra), downloaded once and cached.
 - `output = "tabular"` returns a plain DataFrame for every route and never
   downloads boundaries. Reach for it when you only want the numbers.
