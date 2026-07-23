@@ -10,16 +10,18 @@ kernelspec:
 
 # Competitor walksheds
 
-A coffee shop wants to know which competitors draw from the same neighbourhood it does.
-Its **walkshed** is every residential block that can walk to it. This tutorial finds
-the competitors — the cafes those same blocks can also walk to — and maps them. The
-example city is Providence, Rhode Island.
+A coffee shop wants to understand the competition inside its own catchment. Its
+**walkshed** is every residential block that can walk to it in 10 minutes. This
+tutorial asks, block by block, how many other cafes those residents can also reach on
+foot, and which one is closest. The example city is Providence, Rhode Island.
 
-*Running this tutorial uses about 2,000 tokens.*
+*Running this tutorial uses about 450 tokens.*
 
 ```{code-cell} python
 :tags: [remove-cell]
 import os
+import numpy as np
+import plotly.colors as pc
 from closecity import Client, close_map
 import plotly.io as pio
 
@@ -49,91 +51,82 @@ city_boundary = close.place_boundary(geoid = city["geoid"])
 
 ## Find the shops and our walkshed
 
-`place_pois` returns every cafe within the city's boundary — no radius to guess. Pick
-one as the subject, then pull its walkshed: every block that can walk to it in 10
-minutes.
+`place_pois` returns every cafe within the city's boundary. Pick one as the subject,
+then pull its walkshed: every block that can walk to it in 10 minutes. Draw the
+walkshed with the cafes on top, our shop in orange.
 
 ```{code-cell} python
 cafes = close.place_pois(geoid = city["geoid"], type = cafe)
 ours = cafes.iloc[0]
 print(ours["name"])
-cafes["is_ours"] = cafes["dest_id"] == ours["dest_id"]
 
-our_shed = close.poi_catchment(
-    dest_id = int(ours["dest_id"]),
-    mode = "walk",
-    max_minutes = 10
-)
-walkshed = our_shed.dissolve()
-```
-
-Draw the walkshed, with the cafes on top and our shop in orange.
-
-```{code-cell} python
+our_shed = close.poi_catchment(dest_id = int(ours["dest_id"]), mode = "walk",
+                               max_minutes = 10)
 close_map(
     cafes,
-    color = ["#f36e21" if o else "#202a5b" for o in cafes["is_ours"]],
+    color = ["#f36e21" if d == ours["dest_id"] else "#202a5b" for d in cafes["dest_id"]],
     label = "name",
-    background = walkshed,
+    background = our_shed.dissolve(),
     background_color = "#74b9ff",
-    boundary = city_boundary
+    boundary = city_boundary,
 )
 ```
 
-## Who else those blocks can reach
+## What each block can reach
 
-A competitor is a cafe that the residents of *our* walkshed can also walk to. So take
-the blocks in our walkshed, and for each of the nearest cafes, pull its walkshed: if
-the two share blocks, those residents can reach it too. `our_shed["geoid"]` is just a
-column of block ids, so the overlap is a plain set intersection. (We check the nearest
-cafes to keep the token cost down; the recipe scales to all of them.)
+Now split the walkshed by block. A single `block_pois` call takes the whole list of
+walkshed blocks and returns, for every block, each cafe its residents can walk to
+within 10 minutes — the real routed answer, not a straight-line guess, and one
+request rather than one per block. Passing a list of GEOIDs tags every row with its
+origin `geoid`, so grouping by it reads two things per block: how many cafes are in
+reach, and which one is closest by walk time.
 
 ```{code-cell} python
-our_geoids = set(our_shed["geoid"])
-others = cafes[~cafes["is_ours"]].copy()
-others["dist"] = (others["lon"] - ours["lon"]) ** 2 + (others["lat"] - ours["lat"]) ** 2
-nearest = others.nsmallest(min(15, len(others)), "dist")
+reach = close.block_pois(
+    list(our_shed["geoid"]),
+    mode = "walk", type = cafe, max_minutes = 10, output = "tabular",
+)
 
-shared = {}
-for _, cafe_row in nearest.iterrows():
-    their_shed = close.poi_catchment(
-        dest_id = int(cafe_row["dest_id"]),
-        mode = "walk",
-        max_minutes = 10
-    )
-    shared[cafe_row["dest_id"]] = len(our_geoids & set(their_shed["geoid"]))
-
-for dest_id, n in sorted(shared.items(), key = lambda kv: -kv[1]):
-    if n == 0:
-        continue
-    name = nearest.loc[nearest["dest_id"] == dest_id, "name"].iloc[0]
-    print(f"{name:28} {n:3} shared blocks ({100 * n / len(our_geoids):.0f}% of ours)")
-
-competitors = {d for d, n in shared.items() if n > 0}
-cafes["is_competitor"] = cafes["dest_id"].isin(competitors)
+per_block = reach.groupby("geoid")
+our_shed["n_cafes"] = (
+    our_shed["geoid"].map(per_block.size()).fillna(0).astype(int)
+)
+winners = reach.loc[per_block["travel_time"].idxmin()].set_index("geoid")
+our_shed["closest_cafe"] = our_shed["geoid"].map(winners["dest_id"])
 ```
 
-## Map the contested ground
+## How many cafes each block can reach
 
-Draw every cafe over our walkshed: our shop in orange, the competitors those blocks can
-also reach in red, and the rest in navy. The red cafes are the ones fighting for the
-same walk-in traffic.
+Shade every block in the walkshed by the number of cafes within a 10-minute walk;
+blue marks the blocks with the most choice.
 
 ```{code-cell} python
-def cafe_color(row):
-    if row["is_ours"]:
-        return "#f36e21"
-    return "#e03131" if row["is_competitor"] else "#202a5b"
+close_map(our_shed, fill = "n_cafes", reverse = True, boundary = city_boundary)
+```
+
+## Which cafe is closest
+
+Give each cafe that wins at least one block a colour, then paint every block with the
+colour of its closest cafe. The cafe points share those colours. The result is the
+contested ground — where our shop's catchment gives way to a competitor's.
+
+```{code-cell} python
+closest = [int(c) for c in our_shed["closest_cafe"].dropna().unique()]
+colors = pc.qualitative.Bold
+palette = {cid: colors[i % len(colors)] for i, cid in enumerate(closest)}
+
+block_color = [palette[int(c)] if not np.isnan(c) else "#dddddd"
+               for c in our_shed["closest_cafe"]]
+winning = cafes[cafes["dest_id"].isin(closest)]
 
 close_map(
-    cafes,
-    color = [cafe_color(r) for _, r in cafes.iterrows()],
-    label = "name",
-    background = walkshed,
-    background_color = "#74b9ff",
-    boundary = city_boundary
+    our_shed,
+    color = block_color,
+    points = winning,
+    points_color = [palette[int(d)] for d in winning["dest_id"]],
+    boundary = city_boundary,
 )
 ```
 
-The same recipe scales up: raise the cafe count you check, or compare whole cities by
-pulling each one's cafes with `place_pois`.
+The same recipe scales up: raise `max_minutes`, or compare whole cities by pulling
+each one's cafes with `place_pois`.
