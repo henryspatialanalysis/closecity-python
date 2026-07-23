@@ -70,11 +70,7 @@ stops = close.place_pois(geoid = city["geoid"], type = freq_transit_stop_dest_id
 supermarkets["kind"] = "Supermarket"
 restaurants["kind"] = "Restaurant"
 stops["kind"] = "Transit stop"
-around = pd.concat([
-    supermarkets[["kind", "geometry"]],
-    restaurants[["kind", "geometry"]],
-    stops[["kind", "geometry"]]
-])
+around = pd.concat([supermarkets, restaurants, stops])
 
 palette = {"Supermarket": "#058040", "Restaurant": "#c6cbe0", "Transit stop": "#f36e21"}
 close_map(
@@ -184,6 +180,6 @@ close_map(
     boundary = city_boundary,
     background = [work_a, work_b],
     background_color = ["#058040", "#f36e21"],
-    background_opacity = 0.5
+    background_fill = False
 )
 ```
