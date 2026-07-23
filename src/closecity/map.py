@@ -191,10 +191,10 @@ def close_map(
                     hoverinfo="skip", showlegend=False,
                 ))
 
-    # City-boundary outline (no fill), above the background fills.
+    # City-boundary outline (no fill), above the background fills. It is context, so
+    # it does not drive the zoom — the view frames the data, not the whole city.
     if boundary is not None:
         bg = _as_layer(boundary).to_crs(4326)
-        bounds.append(_bounds(bg))
         lons, lats = _polygon_lines(bg)
         traces.append(go.Scattermapbox(
             lon=lons, lat=lats, mode="lines",
@@ -258,6 +258,22 @@ def close_map(
                     text=[hover[i]], hoverinfo="text", showlegend=False))
             coloraxis = {"colorscale": _scale(palette), "reversescale": reverse,
                          "cmin": min(fv), "cmax": max(fv), "colorbar": {"title": fill}}
+        elif (fv is None and hl is None and isinstance(color, (list, tuple))
+              and len(color) == len(g) and len(g) > 1):
+            # Per-polygon categorical colours (e.g. blocks by their closest POI):
+            # one flat trace per distinct colour.
+            colseries = list(color)
+            for col in dict.fromkeys(colseries):
+                idx = [i for i, c in enumerate(colseries) if c == col]
+                sub = g.iloc[idx][["_id", "geometry"]]
+                traces.append(go.Choroplethmapbox(
+                    geojson=json.loads(sub.to_json()),
+                    locations=[g.at[i, "_id"] for i in idx],
+                    featureidkey="properties._id", z=[1] * len(idx),
+                    colorscale=[[0, col], [1, col]], showscale=False,
+                    marker={"opacity": opacity, "line": poly_line},
+                    text=[hover[i] for i in idx], hoverinfo="text",
+                    showlegend=False))
         else:
             geojson = json.loads(g[["_id", "geometry"]].to_json())
             common = {
