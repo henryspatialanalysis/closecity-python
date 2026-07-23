@@ -128,6 +128,42 @@ raw = close.block_summary(geoid = "440070008001068", mode = "walk", output = "ra
 raw.data["results"][:3]
 ```
 
+## The client methods
+
+Every data-getting method lives on the client; see the [API reference](api.rst) for
+full signatures.
+
+Catalog and lookups (free, no key):
+
+- {py:meth}`~closecity.Client.modes` — the travel modes: walk, bike, transit.
+- {py:meth}`~closecity.Client.destination_types` — the catalog of amenity categories and their numeric ids.
+- {py:meth}`~closecity.Client.places` — a city name to its GEOID and centre point.
+- {py:meth}`~closecity.Client.place_boundary` — the boundary polygon of a census place.
+- {py:meth}`~closecity.Client.vintage` — the data vintage.
+- {py:meth}`~closecity.Client.last_updated` — when the data was last refreshed.
+- {py:meth}`~closecity.Client.isochrone_meta` — isochrone modes, directions, and assumptions.
+- {py:meth}`~closecity.Client.health` — a service health check.
+
+Travel times from a block or a point:
+
+- {py:meth}`~closecity.Client.block_summary` — walk/bike/transit time from a block to each amenity type.
+- {py:meth}`~closecity.Client.point_summary` — the same, from a `lat`/`lon` point.
+- {py:meth}`~closecity.Client.block_pois` — the individual POIs reachable from a block, each with its travel time.
+- {py:meth}`~closecity.Client.point_pois` — the same, from a `lat`/`lon` point.
+
+Points of interest:
+
+- {py:meth}`~closecity.Client.pois_search` — search POIs by radius or bounding box.
+- {py:meth}`~closecity.Client.poi` — the details of one POI.
+- {py:meth}`~closecity.Client.poi_catchment` — the blocks that can walk to a POI (its catchment).
+
+Whole areas:
+
+- {py:meth}`~closecity.Client.blocks_query` — per-block travel times for a polygon, or a centre and radius.
+- {py:meth}`~closecity.Client.place_blocks` — per-block travel times for every block in a place.
+- {py:meth}`~closecity.Client.place_pois` — every POI within a place's boundary.
+- {py:meth}`~closecity.Client.isochrone` — travel-time contours from a block or a point.
+
 ## Handling errors
 
 Problem responses become typed exceptions. Catch a specific one, or the
