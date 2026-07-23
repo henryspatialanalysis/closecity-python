@@ -114,7 +114,10 @@ A block summary, with the readable category names merged on and sorted by time:
 
 ```{code-cell} python
 walk_times = close.block_summary(geoid = "440070008001068", mode = "walk")
-walk_times = walk_times.merge(amenity_types[["dest_type_id", "name"]], on = "dest_type_id")
+walk_times = walk_times.merge(
+    amenity_types[["dest_type_id", "name"]],
+    on = "dest_type_id"
+)
 walk_times.sort_values("travel_time")[["name", "travel_time"]]
 ```
 

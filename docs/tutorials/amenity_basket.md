@@ -67,8 +67,12 @@ same way (at a higher token cost).
 
 ```{code-cell} python
 blocks = close.blocks_query(
-    center = {"lon": city["lon"], "lat": city["lat"]}, radius_m = 2500,
-    mode = "walk", type = list(basket.values()), include_population = True)
+    center = {"lon": city["lon"], "lat": city["lat"]},
+    radius_m = 2500,
+    mode = "walk",
+    type = list(basket.values()),
+    include_population = True
+)
 
 one_per_block = blocks.drop_duplicates("geoid").reset_index(drop = True)
 total_pop = one_per_block["population"].sum()
@@ -94,8 +98,12 @@ highlighted, the city boundary behind.
 near_library = set(blocks.loc[(blocks.dest_type_id == basket["library"]) &
                               (blocks.travel_time <= 15), "geoid"])
 one_per_block["has_library"] = one_per_block.geoid.isin(near_library)
-close_map(one_per_block, highlight = "has_library", color = "#058040",
-          boundary = city_boundary)
+close_map(
+    one_per_block,
+    highlight = "has_library",
+    color = "#058040",
+    boundary = city_boundary
+)
 ```
 
 ## The 15-minute-city score
@@ -127,8 +135,12 @@ basket_pop = one_per_block.loc[one_per_block.geoid.isin(covered_all),
 print(f"All six amenities: {100 * basket_pop / total_pop:.0f}% of residents")
 
 one_per_block["full_basket"] = one_per_block.geoid.isin(covered_all)
-close_map(one_per_block, highlight = "full_basket", color = "#f36e21",
-          boundary = city_boundary)
+close_map(
+    one_per_block,
+    highlight = "full_basket",
+    color = "#f36e21",
+    boundary = city_boundary
+)
 ```
 
 ## Which amenity to add first
@@ -170,8 +182,10 @@ gap = np.array([" + ".join(n for n, m in zip(names, row) if m) for row in missin
 
 almost = np.isin(n_missing, [1, 2])
 almost_pop = pops[almost].sum()
-print(f"{100 * almost_pop / total_pop:.0f}% of residents are one or two amenities "
-      f"short of the full basket.\n")
+print(
+    f"{100 * almost_pop / total_pop:.0f}% of residents are one or two amenities "
+    f"short of the full basket.\n"
+)
 
 by_gap = (pd.Series(pops[almost], index = gap[almost])
           .groupby(level = 0).sum().sort_values(ascending = False))
@@ -188,8 +202,14 @@ isochrone gives exactly the blocks that could reach the site on foot in 15 minut
 
 ```{code-cell} python
 site_lon, site_lat = -77.437, 37.548
-reachable = close.isochrone(lon = site_lon, lat = site_lat, mode = "walk",
-                            direction = "to", minutes = 15, format = "blocks")
+reachable = close.isochrone(
+    lon = site_lon,
+    lat = site_lat,
+    mode = "walk",
+    direction = "to",
+    minutes = 15,
+    format = "blocks"
+)
 
 near_supermarket = set(blocks.loc[(blocks.dest_type_id == basket["supermarket"]) &
                                   (blocks.travel_time <= 15), "geoid"])
@@ -203,6 +223,10 @@ Map the whole city and highlight the blocks that would newly gain access.
 
 ```{code-cell} python
 one_per_block["newly_served"] = one_per_block.geoid.isin(newly_served)
-close_map(one_per_block, highlight = "newly_served", color = "#e8590c",
-          boundary = city_boundary)
+close_map(
+    one_per_block,
+    highlight = "newly_served",
+    color = "#e8590c",
+    boundary = city_boundary
+)
 ```

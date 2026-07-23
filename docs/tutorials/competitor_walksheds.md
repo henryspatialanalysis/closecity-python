@@ -59,17 +59,25 @@ ours = cafes.iloc[0]
 print(ours["name"])
 cafes["is_ours"] = cafes["dest_id"] == ours["dest_id"]
 
-our_shed = close.poi_catchment(dest_id = int(ours["dest_id"]), mode = "walk",
-                               max_minutes = 10)
+our_shed = close.poi_catchment(
+    dest_id = int(ours["dest_id"]),
+    mode = "walk",
+    max_minutes = 10
+)
 walkshed = our_shed.dissolve()
 ```
 
 Draw the walkshed, with the cafes on top and our shop in orange.
 
 ```{code-cell} python
-close_map(cafes, color = ["#f36e21" if o else "#202a5b" for o in cafes["is_ours"]],
-          label = "name", background = walkshed, background_color = "#74b9ff",
-          boundary = city_boundary)
+close_map(
+    cafes,
+    color = ["#f36e21" if o else "#202a5b" for o in cafes["is_ours"]],
+    label = "name",
+    background = walkshed,
+    background_color = "#74b9ff",
+    boundary = city_boundary
+)
 ```
 
 ## Who else those blocks can reach
@@ -88,8 +96,11 @@ nearest = others.nsmallest(min(15, len(others)), "dist")
 
 shared = {}
 for _, cafe_row in nearest.iterrows():
-    their_shed = close.poi_catchment(dest_id = int(cafe_row["dest_id"]), mode = "walk",
-                                     max_minutes = 10)
+    their_shed = close.poi_catchment(
+        dest_id = int(cafe_row["dest_id"]),
+        mode = "walk",
+        max_minutes = 10
+    )
     shared[cafe_row["dest_id"]] = len(our_geoids & set(their_shed["geoid"]))
 
 for dest_id, n in sorted(shared.items(), key = lambda kv: -kv[1]):
@@ -114,8 +125,14 @@ def cafe_color(row):
         return "#f36e21"
     return "#e03131" if row["is_competitor"] else "#202a5b"
 
-close_map(cafes, color = [cafe_color(r) for _, r in cafes.iterrows()], label = "name",
-          background = walkshed, background_color = "#74b9ff", boundary = city_boundary)
+close_map(
+    cafes,
+    color = [cafe_color(r) for _, r in cafes.iterrows()],
+    label = "name",
+    background = walkshed,
+    background_color = "#74b9ff",
+    boundary = city_boundary
+)
 ```
 
 The same recipe scales up: raise the cafe count you check, or compare whole cities by

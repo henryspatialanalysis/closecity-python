@@ -34,8 +34,11 @@ when you want the etag:
 ```python
 close.output = "raw"
 first = close.block_summary(geoid = "440070008001068", mode = "walk")
-again = close.block_summary(geoid = "440070008001068", mode = "walk",
-                            if_none_match = first.etag)
+again = close.block_summary(
+    geoid = "440070008001068",
+    mode = "walk",
+    if_none_match = first.etag
+)
 again.not_modified   # True, and nothing was charged
 ```
 
@@ -60,8 +63,12 @@ returns every reachable block with its minutes. A whole walkshed for 10 tokens,
 where a catchment or block query charges per block:
 
 ```python
-shed = close.isochrone(block = "440070008001068", minutes = 30, mode = "walk",
-                       format = "blocks")
+shed = close.isochrone(
+    block = "440070008001068",
+    minutes = 30,
+    mode = "walk",
+    format = "blocks"
+)
 ```
 
 ## Watch what you spend
@@ -76,8 +83,12 @@ types = close.destination_types()
 supermarket_dest_type = types.loc[types["label"] == "grocery_stores",
                                   "dest_type_id"].iloc[0]
 
-supermarkets = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1200,
-                                 type = supermarket_dest_type)
+supermarkets = close.pois_search(
+    lat = 41.823,
+    lon = -71.412,
+    radius_m = 1200,
+    type = supermarket_dest_type
+)
 supermarkets.attrs["tokens_charged"], supermarkets.attrs["tokens_remaining"]
 ```
 

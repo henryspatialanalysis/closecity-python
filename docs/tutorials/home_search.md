@@ -70,12 +70,19 @@ stops = close.place_pois(geoid = city["geoid"], type = freq_transit_stop_dest_id
 supermarkets["kind"] = "Supermarket"
 restaurants["kind"] = "Restaurant"
 stops["kind"] = "Transit stop"
-around = pd.concat([supermarkets[["kind", "geometry"]], restaurants[["kind", "geometry"]],
-                    stops[["kind", "geometry"]]])
+around = pd.concat([
+    supermarkets[["kind", "geometry"]],
+    restaurants[["kind", "geometry"]],
+    stops[["kind", "geometry"]]
+])
 
 palette = {"Supermarket": "#058040", "Restaurant": "#c6cbe0", "Transit stop": "#f36e21"}
-close_map(around, color = [palette[k] for k in around["kind"]], label = "kind",
-          boundary = city_boundary)
+close_map(
+    around,
+    color = [palette[k] for k in around["kind"]],
+    label = "kind",
+    boundary = city_boundary
+)
 ```
 
 ## Find the blocks that qualify
@@ -88,9 +95,11 @@ radius or a polygon — we do that with a radius in the other tutorials only to 
 their token cost low; a place GEOID pulls the whole city.)
 
 ```{code-cell} python
-blocks = close.place_blocks(geoid = city["geoid"], mode = "walk",
-                            type = [supermarket_dest_id, restaurant_dest_id,
-                                    freq_transit_stop_dest_id])
+blocks = close.place_blocks(
+    geoid = city["geoid"],
+    mode = "walk",
+    type = [supermarket_dest_id, restaurant_dest_id, freq_transit_stop_dest_id]
+)
 ```
 
 Reshape to one row per block, with a walk-time column for each amenity, so a block
@@ -98,7 +107,9 @@ carries all three times at once (and the hover on the map shows them). Then flag
 blocks that pass every rule.
 
 ```{code-cell} python
-city_blocks = blocks.drop_duplicates("geoid")[["geoid", "geometry"]].reset_index(drop = True)
+city_blocks = blocks.drop_duplicates("geoid")[["geoid", "geometry"]].reset_index(
+    drop = True
+)
 def time_to(type_id):
     sub = blocks[blocks["dest_type_id"] == type_id].set_index("geoid")["travel_time"]
     return city_blocks["geoid"].map(sub)
@@ -115,7 +126,12 @@ Show every block in the city, highlight the ones that qualify, and hover any blo
 read its walk time to each amenity.
 
 ```{code-cell} python
-close_map(city_blocks, highlight = "qualifies", color = "#f36e21", boundary = city_boundary)
+close_map(
+    city_blocks,
+    highlight = "qualifies",
+    color = "#f36e21",
+    boundary = city_boundary
+)
 ```
 
 ## Narrow to a shared commute
@@ -125,13 +141,31 @@ shows how far each commute reaches; drawn together, half-transparent, you can se
 at once.
 
 ```{code-cell} python
-work_a = close.isochrone(lon = -71.0865, lat = 42.3625, mode = "transit",
-                         direction = "from", minutes = 20, format = "geojson")
-work_b = close.isochrone(lon = -71.0589, lat = 42.3555, mode = "transit",
-                         direction = "from", minutes = 20, format = "geojson")
+work_a = close.isochrone(
+    lon = -71.0865,
+    lat = 42.3625,
+    mode = "transit",
+    direction = "from",
+    minutes = 20,
+    format = "geojson"
+)
+work_b = close.isochrone(
+    lon = -71.0589,
+    lat = 42.3555,
+    mode = "transit",
+    direction = "from",
+    minutes = 20,
+    format = "geojson"
+)
 
-close_map(work_a, color = "#058040", opacity = 0.5, background = work_b,
-          background_color = "#f36e21", background_opacity = 0.5)
+close_map(
+    work_a,
+    color = "#058040",
+    opacity = 0.5,
+    background = work_b,
+    background_color = "#f36e21",
+    background_opacity = 0.5
+)
 ```
 
 Keep the qualifying blocks that also sit inside both commutes. The final map shows
@@ -143,7 +177,13 @@ both_commutes = work_a.union_all().intersection(work_b.union_all())
 winners = city_blocks[city_blocks["qualifies"]].copy()
 winners["shortlist"] = winners.intersects(both_commutes)
 
-close_map(winners, highlight = "shortlist", color = "#1f78b4", boundary = city_boundary,
-          background = [work_a, work_b], background_color = ["#058040", "#f36e21"],
-          background_opacity = 0.5)
+close_map(
+    winners,
+    highlight = "shortlist",
+    color = "#1f78b4",
+    boundary = city_boundary,
+    background = [work_a, work_b],
+    background_color = ["#058040", "#f36e21"],
+    background_opacity = 0.5
+)
 ```

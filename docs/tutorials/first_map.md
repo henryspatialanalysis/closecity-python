@@ -56,7 +56,10 @@ on top.
 
 ```{code-cell} python
 walk_times = close.point_summary(lat = start_lat, lon = start_lon, mode = "walk")
-walk_times = walk_times.merge(amenity_types[["dest_type_id", "name"]], on = "dest_type_id")
+walk_times = walk_times.merge(
+    amenity_types[["dest_type_id", "name"]],
+    on = "dest_type_id"
+)
 walk_times.sort_values("travel_time")[["name", "travel_time"]]
 ```
 
@@ -69,12 +72,21 @@ within `max_minutes`, each carrying its walk time — no isochrone to overlay.
 boundary behind it for context.
 
 ```{code-cell} python
-nearby_supermarkets = close.point_pois(lat = start_lat, lon = start_lon,
-                                       mode = "walk", type = supermarket_type,
-                                       max_minutes = 30)
+nearby_supermarkets = close.point_pois(
+    lat = start_lat,
+    lon = start_lon,
+    mode = "walk",
+    type = supermarket_type,
+    max_minutes = 30
+)
 
 city_boundary = close.place_boundary(geoid = providence_ri["geoid"])
-close_map(nearby_supermarkets, color = "#e8590c", boundary = city_boundary, label = "name")
+close_map(
+    nearby_supermarkets,
+    color = "#e8590c",
+    boundary = city_boundary,
+    label = "name"
+)
 ```
 
 ## Draw how far you can walk
@@ -84,8 +96,14 @@ minutes. Shade it by the `contour` minutes; blue marks the nearest, most-reachab
 ring.
 
 ```{code-cell} python
-rings = close.isochrone(lon = start_lon, lat = start_lat, mode = "walk",
-                        direction = "from", contours = [10, 20, 30], format = "geojson")
+rings = close.isochrone(
+    lon = start_lon,
+    lat = start_lat,
+    mode = "walk",
+    direction = "from",
+    contours = [10, 20, 30],
+    format = "geojson"
+)
 close_map(rings, fill = "contour", reverse = True)
 ```
 
@@ -95,10 +113,22 @@ The same starting point and the same 30-minute budget, on foot and by bus — th
 clearest way to see what transit buys you.
 
 ```{code-cell} python
-walk = close.isochrone(lon = start_lon, lat = start_lat, mode = "walk",
-                       direction = "from", minutes = 30, format = "geojson")
-transit = close.isochrone(lon = start_lon, lat = start_lat, mode = "transit",
-                          direction = "from", minutes = 30, format = "geojson")
+walk = close.isochrone(
+    lon = start_lon,
+    lat = start_lat,
+    mode = "walk",
+    direction = "from",
+    minutes = 30,
+    format = "geojson"
+)
+transit = close.isochrone(
+    lon = start_lon,
+    lat = start_lat,
+    mode = "transit",
+    direction = "from",
+    minutes = 30,
+    format = "geojson"
+)
 
 close_map(walk, color = "#058040")
 ```
