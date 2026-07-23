@@ -124,14 +124,14 @@ def close_map(
     ``fill`` is the name of a numeric column to shade features by, on a
     continuous ColorBrewer scale with a legend (use it OR ``highlight``);
     ``palette`` (default ``"YlGnBu"``) and ``reverse`` control that scale.
-    ``reverse=False`` puts the blue end at the high values; pass ``reverse=True``
-    when high values mean *less* access, e.g. travel time.
+    ``reverse=False`` (default) puts blue at the low values, ``reverse=True`` at
+    the high values — choose so blue marks the most-accessible end.
 
     ``boundary`` is a polygon GeoDataFrame drawn as a grey outline underneath
     (e.g. a city boundary from ``place_boundary``). ``background`` is one polygon
     GeoDataFrame, or a list of them, drawn as semi-transparent fills underneath
     (e.g. commute isochrones or a walkshed); ``background_color`` recycles across
-    them. ``mark`` draws an "✕" on top at a ``(lon, lat)`` pair or a point
+    them. ``mark`` draws an X on top at a ``(lon, lat)`` pair or a point
     GeoDataFrame (e.g. a starting point). Returns a plotly ``Figure``.
     """
     try:
@@ -239,7 +239,8 @@ def close_map(
                 traces.append(go.Choroplethmapbox(
                     z=z, colorscale=colorscale, showscale=False, **common))
 
-    # A point marked with an "✕", drawn last so it sits on top of everything.
+    # A point marked with an X (two crossing line segments — mapbox text glyphs
+    # do not render on the raster basemap), drawn last so it sits on top.
     if mark is not None:
         import geopandas as gpd
 
@@ -250,9 +251,17 @@ def close_map(
         else:
             mlon, mlat = [mark[0]], [mark[1]]
         bounds.append([min(mlon), min(mlat), max(mlon), max(mlat)])
+        xs = [c for b in bounds for c in (b[0], b[2])]
+        ys = [c for b in bounds for c in (b[1], b[3])]
+        hs = max(max(xs) - min(xs), max(ys) - min(ys)) * 0.02
+        lons, lats = [], []
+        for lo, la in zip(mlon, mlat):
+            dla = hs * math.cos(math.radians(la))  # square against the Mercator stretch
+            lons += [lo - hs, lo + hs, None, lo - hs, lo + hs, None]
+            lats += [la - dla, la + dla, None, la + dla, la - dla, None]
         traces.append(go.Scattermapbox(
-            lon=mlon, lat=mlat, mode="text", text=["✕"] * len(mlon),
-            textfont={"size": 22, "color": "#111111"},
+            lon=lons, lat=lats, mode="lines",
+            line={"color": "#111111", "width": 3},
             hoverinfo="skip", showlegend=False))
 
     center, zoom = _center_zoom(bounds, buffer)

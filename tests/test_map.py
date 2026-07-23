@@ -51,7 +51,7 @@ def test_close_map_mark():
     import plotly.graph_objects as go
     fig = close_map(_points(), mark = (-71.41, 41.82))
     assert isinstance(fig, go.Figure)
-    assert fig.data[-1].mode == "text"
+    assert fig.data[-1].mode == "lines"
 
 
 def test_close_map_boundary_and_background_layers():
