@@ -10,7 +10,11 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 license-files = ["LICENSE"]
-authors = [{ name = "Nathaniel Henry", email = "nat@henryspatialanalysis.com" }]
+authors = [
+    { name = "Henry Spatial Analysis", email = "nat@henryspatialanalysis.com" },
+    { name = "Nathaniel Henry", email = "nat@henryspatialanalysis.com" },
+]
+maintainers = [{ name = "Henry Spatial Analysis", email = "nat@henryspatialanalysis.com" }]
 keywords = ["close", "travel-time", "isochrone", "census", "accessibility", "gis"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
