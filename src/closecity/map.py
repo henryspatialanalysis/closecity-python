@@ -109,6 +109,9 @@ def close_map(
     background=None,
     background_color: Any = "#3b6fb0",
     background_opacity: float = 0.3,
+    background_fill: bool = True,
+    points=None,
+    points_color: str = "#e8590c",
     mark=None,
     buffer: float = 0.15,
 ):
@@ -131,7 +134,9 @@ def close_map(
     (e.g. a city boundary from ``place_boundary``). ``background`` is one polygon
     GeoDataFrame, or a list of them, drawn as semi-transparent fills underneath
     (e.g. commute isochrones or a walkshed); ``background_color`` recycles across
-    them. ``mark`` draws an X on top at a ``(lon, lat)`` pair or a point
+    them, and ``background_fill=False`` draws them as outlines only. ``points`` is a
+    point GeoDataFrame drawn as markers on top of the main layer (e.g. POI locations
+    over a block map). ``mark`` draws an X on top at a ``(lon, lat)`` pair or a point
     GeoDataFrame (e.g. a starting point). Returns a plotly ``Figure``.
     """
     try:
@@ -156,13 +161,20 @@ def close_map(
             bounds.append(_bounds(lg))
             lons, lats = _polygon_lines(lg)
             col = colors[i % len(colors)]
-            traces.append(go.Scattermapbox(
-                lon=lons, lat=lats, mode="lines", fill="toself",
-                fillcolor=_rgba(col, background_opacity),
-                line={"color": _rgba(col, min(1.0, background_opacity + 0.3)),
-                      "width": 1},
-                hoverinfo="skip", showlegend=False,
-            ))
+            if background_fill:
+                traces.append(go.Scattermapbox(
+                    lon=lons, lat=lats, mode="lines", fill="toself",
+                    fillcolor=_rgba(col, background_opacity),
+                    line={"color": _rgba(col, min(1.0, background_opacity + 0.3)),
+                          "width": 1},
+                    hoverinfo="skip", showlegend=False,
+                ))
+            else:
+                traces.append(go.Scattermapbox(
+                    lon=lons, lat=lats, mode="lines",
+                    line={"color": col, "width": 2},
+                    hoverinfo="skip", showlegend=False,
+                ))
 
     # City-boundary outline (no fill), above the background fills.
     if boundary is not None:
@@ -213,6 +225,9 @@ def close_map(
 
         g = g.reset_index(drop=True)
         g["_id"] = [str(i) for i in range(len(g))]
+        # Outline the polygons in black when there are few of them (e.g. isochrone
+        # contours); skip it on dense block maps, where every border would clutter.
+        poly_line = {"color": "#000000", "width": 1.5 if len(g) <= _OVERLAP_MAX else 0}
 
         if fv is not None and len(g) <= _OVERLAP_MAX:
             # Filled polygons that may overlap (nested isochrone contours): one
@@ -224,7 +239,7 @@ def close_map(
                 traces.append(go.Choroplethmapbox(
                     geojson=json.loads(sub.to_json()), locations=[g.at[i, "_id"]],
                     featureidkey="properties._id", z=[fv[i]], coloraxis="coloraxis",
-                    marker={"opacity": opacity, "line": {"width": 0}},
+                    marker={"opacity": opacity, "line": poly_line},
                     text=[hover[i]], hoverinfo="text", showlegend=False))
             coloraxis = {"colorscale": palette, "reversescale": reverse,
                          "cmin": min(fv), "cmax": max(fv), "colorbar": {"title": fill}}
@@ -233,7 +248,7 @@ def close_map(
             common = {
                 "geojson": geojson, "locations": g["_id"].tolist(),
                 "featureidkey": "properties._id",
-                "marker": {"opacity": opacity, "line": {"width": 0}},
+                "marker": {"opacity": opacity, "line": poly_line},
                 "text": hover, "hoverinfo": "text", "showlegend": False,
             }
             if fv is not None:
@@ -246,6 +261,21 @@ def close_map(
                               else [[0, "#888888"], [1, color]])
                 traces.append(go.Choroplethmapbox(
                     z=z, colorscale=colorscale, showscale=False, **common))
+
+    # Extra POI points drawn on top of the main layer (e.g. library locations),
+    # with the same black hairline border as the main point markers.
+    if points is not None:
+        pg = points.to_crs(4326)
+        bounds.append(_bounds(pg))
+        plon, plat = pg.geometry.x.tolist(), pg.geometry.y.tolist()
+        traces.append(go.Scattermapbox(
+            lat=plat, lon=plon, mode="markers",
+            marker={"size": size + 2, "color": "#000000"},
+            hoverinfo="skip", showlegend=False))
+        traces.append(go.Scattermapbox(
+            lat=plat, lon=plon, mode="markers",
+            marker={"size": size, "color": points_color},
+            text=_hover(pg, label), hoverinfo="text", showlegend=False))
 
     # A point marked with an X (two crossing line segments — mapbox text glyphs
     # do not render on the raster basemap), drawn last so it sits on top.
