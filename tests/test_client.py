@@ -160,6 +160,120 @@ def test_blocks_query_is_post_with_cursor_in_body():
     assert bodies[1]["cursor"] == "C2"  # cursor threaded through the body
 
 
+# -- multi-origin (batch) ----------------------------------------------------
+
+def test_block_summary_list_posts_to_batch():
+    seen = {}
+
+    def handler(request):
+        seen["method"] = request.method
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json = {
+            "results": [{"geoid": "g1", "dest_type_id": 30, "mode": "walk",
+                         "travel_time": 6.5}],
+            "blocks": [{"geoid": "g1", "population": 10, "land_area_m2": 1.0}],
+            "errors": [], "truncated": [], "truncated_reason": None,
+        })
+
+    reply = make_client(handler).block_summary(["g1", "g2"], mode = "walk", type = 30)
+    assert seen["method"] == "POST"
+    assert seen["path"] == "/v1/blocks/summary"
+    assert seen["body"]["origins"] == ["g1", "g2"]
+    # Scalar mode/type get wrapped to arrays for the POST body.
+    assert seen["body"]["mode"] == ["walk"] and seen["body"]["type"] == [30]
+    assert reply.data["results"][0]["geoid"] == "g1"
+
+
+def test_block_summary_scalar_still_gets():
+    seen = {}
+
+    def handler(request):
+        seen["method"] = request.method
+        seen["path"] = request.url.path
+        return httpx.Response(200, json = {"block": {"geoid": "g", "population": None,
+                              "land_area_m2": None}, "results": []})
+
+    make_client(handler).block_summary("410390020001010")
+    assert seen["method"] == "GET"
+    assert seen["path"] == "/v1/blocks/410390020001010/summary"
+
+
+def test_block_pois_list_posts_to_batch():
+    seen = {}
+
+    def handler(request):
+        seen["method"] = request.method
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json = {"results": [], "errors": [],
+                              "truncated": [], "truncated_reason": None})
+
+    make_client(handler).block_pois(["g1", "g2"], type = 30, max_minutes = 10)
+    assert seen["method"] == "POST"
+    assert seen["path"] == "/v1/blocks/pois"
+    assert seen["body"]["origins"] == ["g1", "g2"]
+    assert seen["body"]["type"] == [30] and seen["body"]["max_minutes"] == 10
+
+
+def test_point_summary_list_posts_origins_lonlat():
+    seen = {}
+
+    def handler(request):
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json = {"results": [], "origins": [],
+                              "errors": [], "truncated": [], "truncated_reason": None})
+
+    # A (lat, lon) pair and a {lat, lon} mapping both normalise to {lon, lat}.
+    make_client(handler).point_summary([(44.0, -123.0), {"lat": 45.0, "lon": -122.0}])
+    assert seen["path"] == "/v1/point/summary"
+    assert seen["body"]["origins"] == [
+        {"lon": -123.0, "lat": 44.0}, {"lon": -122.0, "lat": 45.0}]
+
+
+def test_point_pois_list_with_lon_raises():
+    with pytest.raises(ValueError, match = "list of \\(lat, lon\\) pairs"):
+        make_client(lambda r: httpx.Response(200)).point_pois([(44.0, -123.0)], -1.0)
+
+
+def test_poi_catchment_list_posts_dest_ids():
+    seen = {}
+
+    def handler(request):
+        seen["path"] = request.url.path
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json = {"results": [], "errors": [],
+                              "truncated": [], "truncated_reason": None})
+
+    make_client(handler).poi_catchment([4181, 4182], mode = "walk")
+    assert seen["path"] == "/v1/pois/catchment"
+    assert seen["body"]["dest_ids"] == [4181, 4182]
+    assert seen["body"]["mode"] == ["walk"]
+
+
+def test_batch_tabular_frame_carries_origin_and_attrs():
+    def handler(request):
+        return httpx.Response(200, json = {
+            "results": [{"geoid": "g1", "dest_type_id": 30, "mode": "walk",
+                         "travel_time": 6.5},
+                        {"geoid": "g2", "dest_type_id": 30, "mode": "walk",
+                         "travel_time": 9.0}],
+            "blocks": [], "errors": [{"geoid": "gX", "type": "block-not-found",
+                                      "detail": "no"}],
+            "truncated": ["g9"], "truncated_reason": "row-budget",
+        })
+
+    client = Client("ck_live_abc", base_url = "https://api.close.city",
+                    output = "tabular", transport = httpx.MockTransport(handler))
+    df = client.block_summary(["g1", "g2", "gX", "g9"])
+    assert list(df["geoid"]) == ["g1", "g2"]
+    # Per-origin errors / truncation ride on df.attrs.
+    assert df.attrs["truncated"] == ["g9"]
+    assert df.attrs["truncated_reason"] == "row-budget"
+    assert df.attrs["errors"][0]["type"] == "block-not-found"
+
+
 # -- conditional requests ----------------------------------------------------
 
 def test_if_none_match_304_is_free_and_not_modified():

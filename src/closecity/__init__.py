@@ -23,7 +23,7 @@ from .map import close_map
 from .spatial import to_geopandas
 from .tabular import to_pandas
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 __all__ = [
     "Client",

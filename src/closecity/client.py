@@ -49,6 +49,23 @@ def _as_list(value: Any) -> Any:
     return [value]
 
 
+def _point_origins(points: Any) -> list[dict[str, float]]:
+    """Normalise a batch of point origins to ``[{"lon": .., "lat": ..}, ...]``.
+
+    Each item is either a ``(lat, lon)`` pair — matching the ``(lat, lon)``
+    argument order of the single-point calls — or a ``{"lat": .., "lon": ..}``
+    mapping.
+    """
+    out: list[dict[str, float]] = []
+    for point in points:
+        if isinstance(point, dict):
+            out.append({"lon": point["lon"], "lat": point["lat"]})
+        else:
+            lat, lon = point
+            out.append({"lon": lon, "lat": lat})
+    return out
+
+
 def _int(value: str | None) -> int | None:
     return int(value) if value is not None else None
 
@@ -329,13 +346,25 @@ class Client:
     # -- origin block / point (metered) -------------------------------------
 
     def block_summary(
-        self, geoid: str, *, mode = None, type = None,
+        self, geoid, *, mode = None, type = None,
         if_none_match: str | None = None, output: str | None = None,
     ):
         """Fastest travel time to each destination category from a census block,
         by mode. `geoid` is a 15-digit block GEOID; `mode`/`type` are optional
         filters (scalar or list). Supports `if_none_match` (ETag/304). A DataFrame
-        (the origin GEOID broadcast to a `geoid` column), or a raw `Reply`."""
+        (the origin GEOID broadcast to a `geoid` column), or a raw `Reply`.
+
+        Pass a **list of GEOIDs** to query many blocks in one call (one request,
+        one rate-limit tick): the frame is the flat, `geoid`-tagged union of every
+        origin's rows, and per-origin `errors` / `truncated` / `truncated_reason`
+        ride on `df.attrs`. `if_none_match` applies to the single-block form only.
+        """
+        if isinstance(geoid, (list, tuple)):
+            reply = self._request("POST", "/v1/blocks/summary", json = _clean(
+                {"origins": list(geoid), "mode": _as_list(mode),
+                 "type": _as_list(type)}))
+            return self._deliver(reply, geometry = False, key = "results",
+                                 output = output)
         return self._deliver(
             self._get(f"/v1/blocks/{geoid}/summary",
                       {"mode": mode, "type": type}, if_none_match = if_none_match),
@@ -343,12 +372,23 @@ class Client:
         )
 
     def block_pois(
-        self, geoid: str, *, mode = None, type = None, dest_id = None,
+        self, geoid, *, mode = None, type = None, dest_id = None,
         max_minutes = None, limit = None, output: str | None = None,
     ):
         """Every nearby POI and its travel time from a block, one row per (POI,
         mode). A GeoDataFrame of points (a plain DataFrame under
-        `output="tabular"`, a `Paginator` under `output="raw"`)."""
+        `output="tabular"`, a `Paginator` under `output="raw"`).
+
+        Pass a **list of GEOIDs** to query many blocks in one call (one request,
+        one rate-limit tick): rows are the flat, `geoid`-tagged union of every
+        origin's POIs, with per-origin `errors` / `truncated` / `truncated_reason`
+        on `df.attrs`. The batch form is not paginated (`limit` is ignored)."""
+        if isinstance(geoid, (list, tuple)):
+            reply = self._request("POST", "/v1/blocks/pois", json = _clean(
+                {"origins": list(geoid), "mode": _as_list(mode),
+                 "type": _as_list(type), "dest_id": _as_list(dest_id),
+                 "max_minutes": max_minutes}))
+            return self._deliver(reply, geometry = True, output = output)
         return self._deliver(Paginator(
             self, "GET", f"/v1/blocks/{geoid}/pois",
             _clean({"mode": mode, "type": type, "dest_id": dest_id,
@@ -356,12 +396,28 @@ class Client:
         ), geometry = True, output = output)
 
     def point_summary(
-        self, lat: float, lon: float, *, mode = None, type = None,
+        self, lat, lon = None, *, mode = None, type = None,
         if_none_match: str | None = None, output: str | None = None,
     ):
         """Like `block_summary`, but from the census block containing a lat/lon.
         The resolved block GEOID is echoed as `resolved_block` and broadcast to a
-        `geoid` column. A DataFrame, or a raw `Reply`."""
+        `geoid` column. A DataFrame, or a raw `Reply`.
+
+        Pass a **list of points** as the first argument — each a `(lat, lon)` pair
+        or a `{"lat": .., "lon": ..}` mapping — to query many points in one call.
+        Each row is tagged with its `origin_lat` / `origin_lon`; resolved blocks,
+        `errors`, and `truncated` ride on `df.attrs`."""
+        if isinstance(lat, (list, tuple)):
+            if lon is not None:
+                raise ValueError(
+                    "For multiple points pass a list of (lat, lon) pairs as the "
+                    "first argument and leave lon unset."
+                )
+            reply = self._request("POST", "/v1/point/summary", json = _clean(
+                {"origins": _point_origins(lat), "mode": _as_list(mode),
+                 "type": _as_list(type)}))
+            return self._deliver(reply, geometry = False, key = "results",
+                                 output = output)
         return self._deliver(
             self._get("/v1/point/summary",
                       {"lat": lat, "lon": lon, "mode": mode, "type": type},
@@ -370,12 +426,28 @@ class Client:
         )
 
     def point_pois(
-        self, lat: float, lon: float, *, mode = None, type = None, dest_id = None,
+        self, lat, lon = None, *, mode = None, type = None, dest_id = None,
         max_minutes = None, limit = None, output: str | None = None,
     ):
         """Like `block_pois`, but from the block containing a lat/lon. A
         GeoDataFrame of points (a plain DataFrame under `output="tabular"`, a
-        `Paginator` under `output="raw"`)."""
+        `Paginator` under `output="raw"`).
+
+        Pass a **list of points** as the first argument — each a `(lat, lon)` pair
+        or a `{"lat": .., "lon": ..}` mapping — to query many points in one call.
+        Each row is tagged with its `origin_lat` / `origin_lon`. The batch form is
+        not paginated (`limit` is ignored)."""
+        if isinstance(lat, (list, tuple)):
+            if lon is not None:
+                raise ValueError(
+                    "For multiple points pass a list of (lat, lon) pairs as the "
+                    "first argument and leave lon unset."
+                )
+            reply = self._request("POST", "/v1/point/pois", json = _clean(
+                {"origins": _point_origins(lat), "mode": _as_list(mode),
+                 "type": _as_list(type), "dest_id": _as_list(dest_id),
+                 "max_minutes": max_minutes}))
+            return self._deliver(reply, geometry = True, output = output)
         return self._deliver(Paginator(
             self, "GET", "/v1/point/pois",
             _clean({"lat": lat, "lon": lon, "mode": mode, "type": type,
@@ -408,12 +480,22 @@ class Client:
         )
 
     def poi_catchment(
-        self, dest_id: int, *, mode = None, block = None, max_minutes = None,
+        self, dest_id, *, mode = None, block = None, max_minutes = None,
         limit = None, output: str | None = None,
     ):
         """Every census block that can reach a POI, one row per (block, mode).
         A GeoDataFrame of block polygons (a plain DataFrame under
-        `output="tabular"`, a `Paginator` under `output="raw"`)."""
+        `output="tabular"`, a `Paginator` under `output="raw"`).
+
+        Pass a **list of dest_ids** to query many POIs in one call (one request,
+        one rate-limit tick): rows are the flat, `dest_id`-tagged union of every
+        POI's catchment, with per-POI `errors` / `truncated` on `df.attrs`. The
+        batch form is not paginated (`limit` is ignored)."""
+        if isinstance(dest_id, (list, tuple)):
+            reply = self._request("POST", "/v1/pois/catchment", json = _clean(
+                {"dest_ids": list(dest_id), "mode": _as_list(mode),
+                 "block": _as_list(block), "max_minutes": max_minutes}))
+            return self._deliver(reply, geometry = True, output = output)
         return self._deliver(Paginator(
             self, "GET", f"/v1/pois/{dest_id}/catchment",
             _clean({"mode": mode, "block": block, "max_minutes": max_minutes,

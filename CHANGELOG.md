@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0
+
+- Multi-origin calls. `block_summary`, `block_pois`, `point_summary`,
+  `point_pois`, and `poi_catchment` now accept many origins in one request:
+  pass a list of GEOIDs (or `dest_id`s), or a list of `(lat, lon)` points, and
+  the whole set is queried in a single call — one request against the
+  300/minute rate limit instead of one per origin. Results come back as a flat
+  frame tagged by origin (`geoid`, or `origin_lat` / `origin_lon`, or
+  `dest_id`); per-origin `errors` and any `truncated` origins ride on
+  `df.attrs`. A batch is charged only for what the account can pay for, so a
+  huge query stops at the balance rather than overspending.
+
 ## 1.4.0
 
 - `Client.place_boundary(geoid)` — the boundary polygon of a census place, as a
