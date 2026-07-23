@@ -13,6 +13,11 @@ from __future__ import annotations
 import math
 from typing import Any
 
+# Below this many filled polygons, draw one trace each (largest first) so
+# overlapping fills — e.g. nested isochrone contours — each stay hoverable.
+# Above it (block maps), a single trace keeps rendering fast.
+_OVERLAP_MAX = 12
+
 
 def _rgba(hexcolor: str, alpha: float) -> str:
     h = hexcolor.lstrip("#")
@@ -136,6 +141,7 @@ def close_map(
 
     g = gdf.to_crs(4326)
     traces = []
+    coloraxis = None
     bounds = [_bounds(g)]
 
     # Semi-transparent background fills, drawn first (underneath everything).
@@ -197,24 +203,39 @@ def close_map(
 
         g = g.reset_index(drop=True)
         g["_id"] = [str(i) for i in range(len(g))]
-        geojson = json.loads(g[["_id", "geometry"]].to_json())
-        common = {
-            "geojson": geojson, "locations": g["_id"].tolist(),
-            "featureidkey": "properties._id",
-            "marker": {"opacity": opacity, "line": {"width": 0}},
-            "text": hover, "hoverinfo": "text", "showlegend": False,
-        }
-        if fv is not None:
-            trace = go.Choroplethmapbox(
-                z=fv, colorscale=palette, reversescale=reverse,
-                showscale=True, colorbar={"title": fill}, **common)
+
+        if fv is not None and len(g) <= _OVERLAP_MAX:
+            # Filled polygons that may overlap (nested isochrone contours): one
+            # trace each, largest first, so every one stays hoverable. A shared
+            # coloraxis gives them a single colorbar.
+            order = g.to_crs(3857).geometry.area.sort_values(ascending=False).index
+            for i in order:
+                sub = g.loc[[i], ["_id", "geometry"]].reset_index(drop=True)
+                traces.append(go.Choroplethmapbox(
+                    geojson=json.loads(sub.to_json()), locations=[g.at[i, "_id"]],
+                    featureidkey="properties._id", z=[fv[i]], coloraxis="coloraxis",
+                    marker={"opacity": opacity, "line": {"width": 0}},
+                    text=[hover[i]], hoverinfo="text", showlegend=False))
+            coloraxis = {"colorscale": palette, "reversescale": reverse,
+                         "cmin": min(fv), "cmax": max(fv), "colorbar": {"title": fill}}
         else:
-            z = [1] * len(g) if hl is None else [int(h) for h in hl]
-            colorscale = ([[0, color], [1, color]] if hl is None
-                          else [[0, "#888888"], [1, color]])
-            trace = go.Choroplethmapbox(
-                z=z, colorscale=colorscale, showscale=False, **common)
-        traces.append(trace)
+            geojson = json.loads(g[["_id", "geometry"]].to_json())
+            common = {
+                "geojson": geojson, "locations": g["_id"].tolist(),
+                "featureidkey": "properties._id",
+                "marker": {"opacity": opacity, "line": {"width": 0}},
+                "text": hover, "hoverinfo": "text", "showlegend": False,
+            }
+            if fv is not None:
+                traces.append(go.Choroplethmapbox(
+                    z=fv, colorscale=palette, reversescale=reverse,
+                    showscale=True, colorbar={"title": fill}, **common))
+            else:
+                z = [1] * len(g) if hl is None else [int(h) for h in hl]
+                colorscale = ([[0, color], [1, color]] if hl is None
+                              else [[0, "#888888"], [1, color]])
+                traces.append(go.Choroplethmapbox(
+                    z=z, colorscale=colorscale, showscale=False, **common))
 
     center, zoom = _center_zoom(bounds, buffer)
     fig = go.Figure(traces)
@@ -222,4 +243,6 @@ def close_map(
         mapbox={"style": "carto-positron", "zoom": zoom, "center": center},
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
     )
+    if coloraxis is not None:
+        fig.update_layout(coloraxis=coloraxis)
     return fig
