@@ -9,12 +9,9 @@ public transit. The data behind [close.city](https://close.city) is served over 
 
 ## Install
 
-Will soon be on PyPI; install from GitHub until then:
-
 ```bash
-pip install git+https://github.com/henryspatialanalysis/closecity-python.git
-# add the census-block boundary downloader:
-pip install "closecity[tiger] @ git+https://github.com/henryspatialanalysis/closecity-python.git"
+pip install closecity
+pip install "closecity[tiger]"   # to auto-download census-block boundaries
 ```
 
 This pulls in `httpx`, `pandas`, and `geopandas`, so results come back as data

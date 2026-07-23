@@ -18,9 +18,9 @@ public transit. The data behind `close.city <https://close.city>`_ is served ove
    close_map(supermarkets, color = "#e8590c")   # interactive map, bright hoverable points
 
 By default, results come back as a GeoDataFrame where geometry applies (points,
-isochrones, and block polygons) and a plain DataFrame otherwise. Install it from GitHub for now (see
-:doc:`installation`); PyPI is coming. The catalog and lookup routes are free; the
-data routes need a key from `account.close.city <https://account.close.city>`_.
+isochrones, and block polygons) and a plain DataFrame otherwise. Install with
+``pip install closecity``. The catalog and lookup routes are free; the data routes
+need a key from `account.close.city <https://account.close.city>`_.
 
 .. toctree::
    :maxdepth: 2
