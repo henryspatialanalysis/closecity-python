@@ -49,7 +49,7 @@ start_lat = providence_ri["lat"]
 
 ## Read travel times from a starting point
 
-Pick a starting point — here the centre of Providence — and ask how long it takes to
+Pick a starting point, here the centre of Providence, and ask how long it takes to
 walk to each kind of amenity. `point_summary()` takes a `lat`/`lon` instead of a block
 GEOID. Join the catalog's readable `name` and sort by time, so the nearest things are
 on top.
@@ -67,7 +67,7 @@ walk_times.sort_values("travel_time")[["name", "travel_time"]]
 
 A 30-minute walk is a travel-time question, not a distance one, so let the routing
 answer it directly: `point_pois` returns every POI reachable from the starting point
-within `max_minutes`, each carrying its walk time — no isochrone to overlay.
+within `max_minutes`, each carrying its walk time, with no isochrone to overlay.
 `close_map()` draws them in one line, shaded by that walk time (blue = closest),
 with the starting point marked by an X and the city boundary behind for context.
 
@@ -110,7 +110,7 @@ close_map(rings, fill = "contour")
 
 ## Walk versus transit
 
-The same starting point and the same 30-minute budget, on foot and by bus — the
+The same starting point and the same 30-minute budget, on foot and by bus: the
 clearest way to see what transit buys you.
 
 ```{code-cell} python

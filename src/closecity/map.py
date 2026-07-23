@@ -143,7 +143,7 @@ def close_map(
     continuous ColorBrewer scale with a legend (use it OR ``highlight``);
     ``palette`` (default ``"YlGnBu"``) and ``reverse`` control that scale.
     ``reverse=False`` (default) puts blue at the low values, ``reverse=True`` at
-    the high values — choose so blue marks the most-accessible end.
+    the high values. Choose so blue marks the most-accessible end.
 
     ``boundary`` is a polygon GeoDataFrame drawn as a grey outline underneath
     (e.g. a city boundary from ``place_boundary``). ``background`` is one polygon

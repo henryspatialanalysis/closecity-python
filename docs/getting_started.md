@@ -32,7 +32,7 @@ close = Client(os.environ.get("CLOSECITY_KEY"))
 A few terms come up throughout:
 
 - **Census block.** The smallest area the Census Bureau publishes. Each one has a
-  15-digit id, its **GEOID**. Block GEOIDs come from the census — look them up with
+  15-digit id, its **GEOID**. Block GEOIDs come from the census. Look them up with
   `pygris` or the Census Bureau geocoder/API, or read them straight off Close's
   block routes (`blocks_query`, `place_blocks`).
 - **Destination type.** A category of place, such as grocery stores or libraries.
@@ -89,7 +89,7 @@ point instead of a GEOID.
 ## Make a call and map it
 
 Routes with geometry return a GeoDataFrame. `close_map()` draws it on an interactive
-basemap in one line — bright, hoverable points here, with the city boundary behind
+basemap in one line: bright, hoverable points here, with the city boundary behind
 them and the view zoomed to fit.
 
 ```{code-cell} python
@@ -135,34 +135,34 @@ full signatures.
 
 Catalog and lookups (free, no key):
 
-- {py:meth}`~closecity.Client.modes` — the travel modes: walk, bike, transit.
-- {py:meth}`~closecity.Client.destination_types` — the catalog of amenity categories and their numeric ids.
-- {py:meth}`~closecity.Client.places` — a city name to its GEOID and centre point.
-- {py:meth}`~closecity.Client.place_boundary` — the boundary polygon of a census place.
-- {py:meth}`~closecity.Client.vintage` — the data vintage.
-- {py:meth}`~closecity.Client.last_updated` — when the data was last refreshed.
-- {py:meth}`~closecity.Client.isochrone_meta` — isochrone modes, directions, and assumptions.
-- {py:meth}`~closecity.Client.health` — a service health check.
+- {py:meth}`~closecity.Client.modes`: the travel modes (walk, bike, transit).
+- {py:meth}`~closecity.Client.destination_types`: the catalog of amenity categories and their numeric ids.
+- {py:meth}`~closecity.Client.places`: a city name to its GEOID and centre point.
+- {py:meth}`~closecity.Client.place_boundary`: the boundary polygon of a census place.
+- {py:meth}`~closecity.Client.vintage`: the data vintage.
+- {py:meth}`~closecity.Client.last_updated`: when the data was last refreshed.
+- {py:meth}`~closecity.Client.isochrone_meta`: isochrone modes, directions, and assumptions.
+- {py:meth}`~closecity.Client.health`: a service health check.
 
 Travel times from a block or a point:
 
-- {py:meth}`~closecity.Client.block_summary` — walk/bike/transit time from a block to each amenity type.
-- {py:meth}`~closecity.Client.point_summary` — the same, from a `lat`/`lon` point.
-- {py:meth}`~closecity.Client.block_pois` — the individual POIs reachable from a block, each with its travel time.
-- {py:meth}`~closecity.Client.point_pois` — the same, from a `lat`/`lon` point.
+- {py:meth}`~closecity.Client.block_summary`: walk/bike/transit time from a block to each amenity type.
+- {py:meth}`~closecity.Client.point_summary`: the same, from a `lat`/`lon` point.
+- {py:meth}`~closecity.Client.block_pois`: the individual POIs reachable from a block, each with its travel time.
+- {py:meth}`~closecity.Client.point_pois`: the same, from a `lat`/`lon` point.
 
 Points of interest:
 
-- {py:meth}`~closecity.Client.pois_search` — search POIs by radius or bounding box.
-- {py:meth}`~closecity.Client.poi` — the details of one POI.
-- {py:meth}`~closecity.Client.poi_catchment` — the blocks that can walk to a POI (its catchment).
+- {py:meth}`~closecity.Client.pois_search`: search POIs by radius or bounding box.
+- {py:meth}`~closecity.Client.poi`: the details of one POI.
+- {py:meth}`~closecity.Client.poi_catchment`: the blocks that can walk to a POI (its catchment).
 
 Whole areas:
 
-- {py:meth}`~closecity.Client.blocks_query` — per-block travel times for a polygon, or a centre and radius.
-- {py:meth}`~closecity.Client.place_blocks` — per-block travel times for every block in a place.
-- {py:meth}`~closecity.Client.place_pois` — every POI within a place's boundary.
-- {py:meth}`~closecity.Client.isochrone` — travel-time contours from a block or a point.
+- {py:meth}`~closecity.Client.blocks_query`: per-block travel times for a polygon, or a centre and radius.
+- {py:meth}`~closecity.Client.place_blocks`: per-block travel times for every block in a place.
+- {py:meth}`~closecity.Client.place_pois`: every POI within a place's boundary.
+- {py:meth}`~closecity.Client.isochrone`: travel-time contours from a block or a point.
 
 ## Handling errors
 

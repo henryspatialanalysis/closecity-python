@@ -52,8 +52,8 @@ def _as_list(value: Any) -> Any:
 def _point_origins(points: Any) -> list[dict[str, float]]:
     """Normalise a batch of point origins to ``[{"lon": .., "lat": ..}, ...]``.
 
-    Each item is either a ``(lat, lon)`` pair — matching the ``(lat, lon)``
-    argument order of the single-point calls — or a ``{"lat": .., "lon": ..}``
+    Each item is either a ``(lat, lon)`` pair (matching the ``(lat, lon)``
+    argument order of the single-point calls) or a ``{"lat": .., "lon": ..}``
     mapping.
     """
     out: list[dict[str, float]] = []
@@ -403,8 +403,8 @@ class Client:
         The resolved block GEOID is echoed as `resolved_block` and broadcast to a
         `geoid` column. A DataFrame, or a raw `Reply`.
 
-        Pass a **list of points** as the first argument — each a `(lat, lon)` pair
-        or a `{"lat": .., "lon": ..}` mapping — to query many points in one call.
+        Pass a **list of points** as the first argument (each a `(lat, lon)` pair
+        or a `{"lat": .., "lon": ..}` mapping) to query many points in one call.
         Each row is tagged with its `origin_lat` / `origin_lon`; resolved blocks,
         `errors`, and `truncated` ride on `df.attrs`."""
         if isinstance(lat, (list, tuple)):
@@ -433,8 +433,8 @@ class Client:
         GeoDataFrame of points (a plain DataFrame under `output="tabular"`, a
         `Paginator` under `output="raw"`).
 
-        Pass a **list of points** as the first argument — each a `(lat, lon)` pair
-        or a `{"lat": .., "lon": ..}` mapping — to query many points in one call.
+        Pass a **list of points** as the first argument (each a `(lat, lon)` pair
+        or a `{"lat": .., "lon": ..}` mapping) to query many points in one call.
         Each row is tagged with its `origin_lat` / `origin_lon`. The batch form is
         not paginated (`limit` is ignored)."""
         if isinstance(lat, (list, tuple)):
@@ -544,8 +544,8 @@ class Client:
         output: str | None = None,
     ):
         """Every point of interest within a census place (city or town), by
-        place GEOID. The place analog of `pois_search`; pass `type` to get,
-        e.g., all supermarkets in a city. Spatial only — no travel times. A
+        place GEOID. The place analogue of `pois_search`; pass `type` to get,
+        e.g., all supermarkets in a city. Spatial only, no travel times. A
         GeoDataFrame of points (a plain DataFrame under `output="tabular"`, a
         `Paginator` under `output="raw"`)."""
         return self._deliver(Paginator(

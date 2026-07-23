@@ -59,7 +59,7 @@ city_boundary = close.place_boundary(geoid = city["geoid"])
 ## See what is around
 
 Look at the raw ingredients first: every supermarket, restaurant, and frequent-transit
-stop **within Somerville**, from `place_pois` — the city boundary, not a guessed
+stop **within Somerville**, from `place_pois`. The city boundary, not a guessed
 radius, is the edge. Give each category a colour and map them together.
 
 ```{code-cell} python
@@ -84,10 +84,10 @@ close_map(
 ## Find the blocks that qualify
 
 Somerville is a census place, so one call by place GEOID pulls the per-block walk
-times for every block in the city — `place_blocks` reads every page and returns one
+times for every block in the city. `place_blocks` reads every page and returns one
 row per (block, category); block boundaries come from `pygris`, downloaded once and
 cached. (To search an arbitrary area instead, use `blocks_query` with a centre and
-radius or a polygon — we do that with a radius in the other tutorials only to keep
+radius or a polygon. We do that with a radius in the other tutorials only to keep
 their token cost low; a place GEOID pulls the whole city.)
 
 ```{code-cell} python
@@ -165,7 +165,7 @@ close_map(
 ```
 
 Keep the qualifying blocks that also sit inside both commutes. The final map shows
-those winning blocks, with the shortlist — inside both commutes — highlighted, over
+those winning blocks, with the shortlist (inside both commutes) highlighted, over
 the two commute walksheds.
 
 ```{code-cell} python

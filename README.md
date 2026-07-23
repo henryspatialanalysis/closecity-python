@@ -1,16 +1,20 @@
 # closecity
 
-Python client for the Close API. Get travel times from every US census block to
-nearby places, on foot, by bike, and by public transit. This is the data behind
-[close.city](https://close.city), read over the [Close API](https://api.close.city).
+This is the Python software development kit for the Close.City API. It returns
+travel times from every US census block to nearby places, on foot, by bike, and by
+public transit. The data behind [close.city](https://close.city) is served over the
+[Close API](https://api.close.city).
 
 **Documentation:** https://henryspatialanalysis.github.io/closecity-python/
 
 ## Install
 
+Will soon be on PyPI; install from GitHub until then:
+
 ```bash
-pip install closecity
-pip install "closecity[tiger]"   # to auto-download census-block boundaries
+pip install git+https://github.com/henryspatialanalysis/closecity-python.git
+# add the census-block boundary downloader:
+pip install "closecity[tiger] @ git+https://github.com/henryspatialanalysis/closecity-python.git"
 ```
 
 This pulls in `httpx`, `pandas`, and `geopandas`, so results come back as data
@@ -55,7 +59,7 @@ A few terms come up throughout the API:
 - **Isochrone** or **catchment**: the area you can reach starting from a point
   within a time limit, by a selected travel mode.
 
-## Choosing an output
+## Choose an output
 
 Set `output` on the client, or per call:
 

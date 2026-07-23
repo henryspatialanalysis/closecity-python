@@ -99,7 +99,7 @@ for a in basket["amenity"]:
 ```
 
 Parks and restaurants tend to be everywhere; supermarkets and libraries are usually
-the hardest to reach. Map the library coverage — every block shown, the covered ones
+the hardest to reach. Map the library coverage: every block shown, the covered ones
 highlighted, the library locations as points, the city boundary behind.
 
 ```{code-cell} python
@@ -148,7 +148,7 @@ for a in basket["amenity"]:
 
 ## Who is one or two amenities away
 
-The residents worth targeting first are the ones *almost* there — a block with five
+The residents worth targeting first are the ones *almost* there: a block with five
 of the six is a much easier win than one with none. Count how many amenities each
 block is missing, and for the blocks short by just one or two, break down which
 amenities are the gap.

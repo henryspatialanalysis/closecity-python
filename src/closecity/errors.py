@@ -50,7 +50,8 @@ class CloseAPIError(CloseError):
         if detail:
             message += f": {detail}"
         if hint:
-            message += f" — {hint}"
+            sep = "" if message.endswith((".", "!", "?")) else "."
+            message += f"{sep} {hint}"
         if request_id:
             message += f" (request {request_id})"
         super().__init__(message)

@@ -76,7 +76,7 @@ close_map(
 
 Now split the walkshed by block. A single `block_pois` call takes the whole list of
 walkshed blocks and returns, for every block, each cafe its residents can walk to
-within 10 minutes — the real routed answer, not a straight-line guess, and one
+within 10 minutes: the real routed answer, not a straight-line guess, and one
 request rather than one per block. Passing a list of GEOIDs tags every row with its
 origin `geoid`, so grouping by it reads two things per block: how many cafes are in
 reach, and which one is closest by walk time.
@@ -98,17 +98,25 @@ our_shed["closest_cafe"] = our_shed["geoid"].map(winners["dest_id"])
 ## How many cafes each block can reach
 
 Shade every block in the walkshed by the number of cafes within a 10-minute walk;
-blue marks the blocks with the most choice.
+blue marks the blocks with the most choice, and the cafes those blocks can reach are
+drawn on top as points.
 
 ```{code-cell} python
-close_map(our_shed, fill = "n_cafes", reverse = True, boundary = city_boundary)
+reachable = cafes[cafes["dest_id"].isin(reach["dest_id"].unique())]
+close_map(
+    our_shed,
+    fill = "n_cafes",
+    reverse = True,
+    points = reachable,
+    boundary = city_boundary,
+)
 ```
 
 ## Which cafe is closest
 
 Give each cafe that wins at least one block a colour, then paint every block with the
 colour of its closest cafe. The cafe points share those colours. The result is the
-contested ground — where our shop's catchment gives way to a competitor's.
+contested ground: where our shop's catchment gives way to a competitor's.
 
 ```{code-cell} python
 closest = [int(c) for c in our_shed["closest_cafe"].dropna().unique()]

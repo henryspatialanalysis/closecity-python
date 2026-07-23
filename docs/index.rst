@@ -1,9 +1,10 @@
 closecity
 =========
 
-Python client for the Close API (`api.close.city <https://api.close.city>`_). Get
+This is the Python software development kit for the Close.City API. It returns
 travel times from every US census block to nearby places, on foot, by bike, and by
-public transit. This is the data behind `close.city <https://close.city>`_.
+public transit. The data behind `close.city <https://close.city>`_ is served over
+`api.close.city <https://api.close.city>`_.
 
 .. code-block:: python
 
@@ -16,10 +17,10 @@ public transit. This is the data behind `close.city <https://close.city>`_.
    supermarkets = close.pois_search(lat = 41.823, lon = -71.412, radius_m = 1500, type = 30)
    close_map(supermarkets, color = "#e8590c")   # interactive map, bright hoverable points
 
-Results are tabular by default: a GeoDataFrame where geometry applies, a plain
-DataFrame otherwise. Install with ``pip install closecity``. The catalog and
-lookup routes are free; the data routes need a key from
-`account.close.city <https://account.close.city>`_.
+By default, results come back as a GeoDataFrame where geometry applies (points,
+isochrones, and block polygons) and a plain DataFrame otherwise. Install it from GitHub for now (see
+:doc:`installation`); PyPI is coming. The catalog and lookup routes are free; the
+data routes need a key from `account.close.city <https://account.close.city>`_.
 
 .. toctree::
    :maxdepth: 2

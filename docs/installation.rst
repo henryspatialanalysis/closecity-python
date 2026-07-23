@@ -1,11 +1,14 @@
 Installation
 ============
 
+The package will soon be published to PyPI. Until then, install it from GitHub:
+
 .. code-block:: bash
 
-   pip install closecity
+   pip install git+https://github.com/henryspatialanalysis/closecity-python.git
 
-This pulls in `httpx <https://www.python-httpx.org/>`_ and
+Once it lands on PyPI, ``pip install closecity`` will work. Either way, this pulls
+in `httpx <https://www.python-httpx.org/>`_ and
 `geopandas <https://geopandas.org/>`_, so feature methods return GeoDataFrames out of
 the box.
 
@@ -18,7 +21,7 @@ download the boundaries for you, add the ``tiger`` extra:
 
 .. code-block:: bash
 
-   pip install "closecity[tiger]"
+   pip install "closecity[tiger] @ git+https://github.com/henryspatialanalysis/closecity-python.git"
 
 You do not need it for ``output="tabular"``, which returns the same rows without
 geometry.
