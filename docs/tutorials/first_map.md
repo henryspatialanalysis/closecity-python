@@ -68,8 +68,8 @@ walk_times.sort_values("travel_time")[["name", "travel_time"]]
 A 30-minute walk is a travel-time question, not a distance one, so let the routing
 answer it directly: `point_pois` returns every POI reachable from the starting point
 within `max_minutes`, each carrying its walk time — no isochrone to overlay.
-`close_map()` draws the result on an interactive basemap in one line, with the city
-boundary behind it for context.
+`close_map()` draws them in one line, shaded by that walk time (blue = closest),
+with the starting point marked by an X and the city boundary behind for context.
 
 ```{code-cell} python
 nearby_supermarkets = close.point_pois(
@@ -83,7 +83,7 @@ nearby_supermarkets = close.point_pois(
 city_boundary = close.place_boundary(geoid = providence_ri["geoid"])
 close_map(
     nearby_supermarkets,
-    color = "#e8590c",
+    fill = "travel_time",
     boundary = city_boundary,
     label = "name",
     mark = (start_lon, start_lat)
@@ -105,7 +105,7 @@ rings = close.isochrone(
     contours = [10, 20, 30],
     format = "geojson"
 )
-close_map(rings, fill = "contour", reverse = True)
+close_map(rings, fill = "contour")
 ```
 
 ## Walk versus transit

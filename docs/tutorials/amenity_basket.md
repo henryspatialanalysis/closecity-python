@@ -116,7 +116,7 @@ blocks. It reuses the data you already pulled, so it costs nothing more.
 covered = blocks[blocks.travel_time <= 15]
 score = covered.groupby("geoid")["dest_type_id"].nunique()
 one_per_block["score"] = one_per_block.geoid.map(score).fillna(0).astype(int)
-close_map(one_per_block, fill = "score", boundary = city_boundary)
+close_map(one_per_block, fill = "score", reverse = True, boundary = city_boundary)
 ```
 
 ## Who can reach all six
