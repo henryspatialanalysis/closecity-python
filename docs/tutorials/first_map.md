@@ -137,12 +137,3 @@ close_map(walk, color = "#058040")
 ```{code-cell} python
 close_map(transit, color = "#202a5b")
 ```
-
-## Where to next
-
-- [Looking for a home](home_search): find blocks near several amenities at once,
-  then narrow to a commute.
-- [The amenity basket](amenity_basket): population-weighted walkability coverage
-  across a whole city.
-- [Competitor walksheds](competitor_walksheds): who else draws from your
-  neighbourhood.
