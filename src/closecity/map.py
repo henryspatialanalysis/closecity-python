@@ -103,7 +103,7 @@ def close_map(
     palette: str = "YlGnBu",
     reverse: bool = False,
     label: str | None = None,
-    size: int = 9,
+    size: int = 15,
     opacity: float = 0.65,
     boundary=None,
     background=None,
@@ -186,6 +186,14 @@ def close_map(
 
     geom_type = g.geom_type.iloc[0] if len(g) else "Point"
     if "Point" in geom_type:
+        lats, lons = g.geometry.y.tolist(), g.geometry.x.tolist()
+        # Hairline black border: a slightly larger black marker underneath
+        # (scattermapbox markers have no line/stroke of their own).
+        traces.append(go.Scattermapbox(
+            lat=lats, lon=lons, mode="markers",
+            marker={"size": size + 2, "color": "#000000"},
+            hoverinfo="skip", showlegend=False,
+        ))
         if fv is not None:
             marker = {"size": size, "color": fv, "colorscale": palette,
                       "reversescale": reverse, "showscale": True,
@@ -196,7 +204,7 @@ def close_map(
             ]
             marker = {"size": size, "color": marker_color}
         traces.append(go.Scattermapbox(
-            lat=g.geometry.y.tolist(), lon=g.geometry.x.tolist(),
+            lat=lats, lon=lons,
             mode="markers", marker=marker,
             text=hover, hoverinfo="text", showlegend=False,
         ))

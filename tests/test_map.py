@@ -60,6 +60,6 @@ def test_close_map_boundary_and_background_layers():
     boundary = polys.geometry.union_all()   # a bare shapely geometry
     fig = close_map(_points(), boundary = boundary,
                     background = [polys], background_color = "#3b6fb0")
-    # one background fill + one boundary outline + the point layer
+    # background fill + boundary outline + point border-halo + points
     assert isinstance(fig, go.Figure)
-    assert len(fig.data) == 3
+    assert len(fig.data) == 4
