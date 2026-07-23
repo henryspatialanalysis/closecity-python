@@ -14,7 +14,7 @@ The quickest way to feel what Close gives you: read the walk times from a starti
 point, map the supermarkets you can reach on foot, then draw how far a 30-minute walk
 takes you. The example city is Providence, Rhode Island.
 
-*Running this tutorial uses about 110 tokens.*
+*Running this tutorial uses about 90 tokens.*
 
 ```{code-cell} python
 :tags: [remove-cell]
@@ -63,18 +63,15 @@ walk_times.sort_values("travel_time")[["name", "travel_time"]]
 ## Map the supermarkets within a 30-minute walk
 
 A 30-minute walk is a travel-time question, not a distance one, so let the routing
-answer it. Take the 30-minute walk isochrone from the starting point, pull every
-supermarket in the city, and keep the ones that fall inside that walkshed.
+answer it directly: `point_pois` returns every POI reachable from the starting point
+within `max_minutes`, each carrying its walk time — no isochrone to overlay.
 `close_map()` draws the result on an interactive basemap in one line, with the city
 boundary behind it for context.
 
 ```{code-cell} python
-walkshed_30min = close.isochrone(lon = start_lon, lat = start_lat, mode = "walk",
-                                 direction = "from", minutes = 30, format = "geojson")
-
-city_supermarkets = close.place_pois(geoid = providence_ri["geoid"],
-                                     type = supermarket_type)
-nearby_supermarkets = city_supermarkets[city_supermarkets.within(walkshed_30min.union_all())]
+nearby_supermarkets = close.point_pois(lat = start_lat, lon = start_lon,
+                                       mode = "walk", type = supermarket_type,
+                                       max_minutes = 30)
 
 city_boundary = close.place_boundary(geoid = providence_ri["geoid"])
 close_map(nearby_supermarkets, color = "#e8590c", boundary = city_boundary, label = "name")
