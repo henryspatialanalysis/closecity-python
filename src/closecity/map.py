@@ -109,6 +109,7 @@ def close_map(
     background=None,
     background_color: Any = "#3b6fb0",
     background_opacity: float = 0.3,
+    mark=None,
     buffer: float = 0.15,
 ):
     """Draw a :class:`geopandas.GeoDataFrame` from a client method as an
@@ -130,7 +131,8 @@ def close_map(
     (e.g. a city boundary from ``place_boundary``). ``background`` is one polygon
     GeoDataFrame, or a list of them, drawn as semi-transparent fills underneath
     (e.g. commute isochrones or a walkshed); ``background_color`` recycles across
-    them. Returns a plotly ``Figure``.
+    them. ``mark`` draws an "✕" on top at a ``(lon, lat)`` pair or a point
+    GeoDataFrame (e.g. a starting point). Returns a plotly ``Figure``.
     """
     try:
         import plotly.graph_objects as go
@@ -236,6 +238,22 @@ def close_map(
                               else [[0, "#888888"], [1, color]])
                 traces.append(go.Choroplethmapbox(
                     z=z, colorscale=colorscale, showscale=False, **common))
+
+    # A point marked with an "✕", drawn last so it sits on top of everything.
+    if mark is not None:
+        import geopandas as gpd
+
+        if isinstance(mark, (gpd.GeoDataFrame, gpd.GeoSeries)):
+            geom = (mark.geometry if isinstance(mark, gpd.GeoDataFrame) else mark)
+            geom = geom.to_crs(4326)
+            mlon, mlat = list(geom.x), list(geom.y)
+        else:
+            mlon, mlat = [mark[0]], [mark[1]]
+        bounds.append([min(mlon), min(mlat), max(mlon), max(mlat)])
+        traces.append(go.Scattermapbox(
+            lon=mlon, lat=mlat, mode="text", text=["✕"] * len(mlon),
+            textfont={"size": 22, "color": "#111111"},
+            hoverinfo="skip", showlegend=False))
 
     center, zoom = _center_zoom(bounds, buffer)
     fig = go.Figure(traces)
