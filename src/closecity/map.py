@@ -18,6 +18,21 @@ from typing import Any
 # Above it (block maps), a single trace keeps rendering fast.
 _OVERLAP_MAX = 12
 
+# "YlGnBu" truncated to its 10-90% range — the extreme dark-blue and pale-yellow
+# look jarring on the pale basemap. Ordered blue->yellow to match plotly's named
+# "YlGnBu" in a trace, so `reverse` behaves the same as before.
+_YLGNBU_TRUNC = [
+    [0.0, "rgb(31, 47, 136)"], [0.125, "rgb(35, 77, 160)"],
+    [0.25, "rgb(32, 114, 178)"], [0.375, "rgb(36, 152, 193)"],
+    [0.5, "rgb(65, 182, 196)"], [0.625, "rgb(115, 200, 189)"],
+    [0.75, "rgb(170, 222, 183)"], [0.875, "rgb(214, 239, 179)"],
+    [1.0, "rgb(241, 249, 185)"],
+]
+
+
+def _scale(palette):
+    return _YLGNBU_TRUNC if palette == "YlGnBu" else palette
+
 
 def _rgba(hexcolor: str, alpha: float) -> str:
     h = hexcolor.lstrip("#")
@@ -207,7 +222,7 @@ def close_map(
             hoverinfo="skip", showlegend=False,
         ))
         if fv is not None:
-            marker = {"size": size, "color": fv, "colorscale": palette,
+            marker = {"size": size, "color": fv, "colorscale": _scale(palette),
                       "reversescale": reverse, "showscale": True,
                       "colorbar": {"title": fill}}
         else:
@@ -241,7 +256,7 @@ def close_map(
                     featureidkey="properties._id", z=[fv[i]], coloraxis="coloraxis",
                     marker={"opacity": opacity, "line": poly_line},
                     text=[hover[i]], hoverinfo="text", showlegend=False))
-            coloraxis = {"colorscale": palette, "reversescale": reverse,
+            coloraxis = {"colorscale": _scale(palette), "reversescale": reverse,
                          "cmin": min(fv), "cmax": max(fv), "colorbar": {"title": fill}}
         else:
             geojson = json.loads(g[["_id", "geometry"]].to_json())
@@ -253,7 +268,7 @@ def close_map(
             }
             if fv is not None:
                 traces.append(go.Choroplethmapbox(
-                    z=fv, colorscale=palette, reversescale=reverse,
+                    z=fv, colorscale=_scale(palette), reversescale=reverse,
                     showscale=True, colorbar={"title": fill}, **common))
             else:
                 z = [1] * len(g) if hl is None else [int(h) for h in hl]
